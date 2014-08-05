@@ -1,0 +1,26 @@
+{
+    "name": "jasny/auth",
+    "bin": ["bin/auth"],
+    "description": "Authentication and level based authorization",
+    "keywords": ["auth"],
+    "license": "MIT",
+    "homepage": "http://jasny.github.com/auth",
+    "authors": [
+        {
+            "name": "Arnold Daniels",
+            "email": "arnold@jasny.net",
+            "homepage": "http://www.jasny.net"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/jasny/auth/issues",
+        "source": "https://github.com/jasny/auth"
+    },
+    "require": {
+    },
+    "autoload": {
+        "psr-4": {
+            "Jasny\\": "src/"
+        }
+    }
+}
