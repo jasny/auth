@@ -17,6 +17,7 @@
         "source": "https://github.com/jasny/auth"
     },
     "require": {
+        "php": ">=5.4.0"
     },
     "autoload": {
         "psr-4": {
