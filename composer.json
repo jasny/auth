@@ -1,6 +1,5 @@
 {
     "name": "jasny/auth",
-    "bin": ["bin/auth"],
     "description": "Authentication and level based authorization",
     "keywords": ["auth"],
     "license": "MIT",
