@@ -29,11 +29,14 @@ interface User
     public function getPassword();
     
     /**
-     * Get authentication level
+     * Get authentication level or group(s).
      * 
-     * @return int
+     * @internal Return level (int) or level name (string) for level based auth.
+     * @internal Return group (string) or groups (array) for group base auth.
+     * 
+     * @return int|string|array
      */
-    public function getAuthLevel();
+    public function getRole();
     
     
     /**
@@ -42,4 +45,9 @@ interface User
      * @return boolean  false cancels the login
      */
     public function onLogin();
+    
+    /**
+     * Event called on logout.
+     */
+    public function onLogout();
 }

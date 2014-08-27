@@ -18,8 +18,8 @@
     "require": {
     },
     "autoload": {
-        "psr-4": {
-            "Jasny\\": "src/"
+        "psr-0": {
+            "Jasny\\Auth": "src/"
         }
     }
 }

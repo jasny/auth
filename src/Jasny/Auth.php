@@ -13,11 +13,8 @@ abstract class Auth
      * Authorization levels
      * @var array
      */
-    protected static $levels = [
-        1 => 'user',
-        1000 => 'admin'
-    ];
-
+    protected static $groups;
+    
     /**
      * Secret word for creating a verification hash
      * @var string
@@ -49,58 +46,6 @@ abstract class Auth
     
     
     /**
-     * Get secret word
-     * 
-     * @return string
-     */
-    protected static function getSecret()
-    {
-        if (!isset(static::$secret)) throw new \Exception("Auth secret isn't set");
-        return static::$secret;
-    }
-    
-    
-    /**
-     * Get all auth levels
-     *  
-     * @return array
-     */
-    public static function getLevels()
-    {
-        return static::$levels;
-    }
-    
-    /**
-     * Get auth level
-     * 
-     * @param string $type
-     * @return int
-     */
-    public static function getLevel($type)
-    {
-        $level = array_search($type, static::$levels);
-        if ($level === false) throw new \Exception("Authorization level '$type' isn't defined.");
-        
-        return $level;
-    }
-
-    /**
-     * Check if user has specified auth level or more.
-     * 
-     * @param int $level
-     * @return boolean
-     */
-    public static function forLevel($level)
-    {
-        if ($level === 0) return true;
-        if (!self::user()) return false;
-        
-        if (is_string($level) && !ctype_digit($level)) $level = static::getLevel($type);
-        return self::user()->getAuthLevel() >= $level;
-    }
-    
-    
-    /**
      * Generate a password
      * 
      * @param string $password
@@ -123,7 +68,7 @@ abstract class Auth
         $user = static::fetchUserByUsername($username);
         if (!isset($user) || $user->getPassword() !== self::password($password, $user->getPassword())) return false;
         
-        static::setUser($user);
+        return static::setUser($user);
     }
     
     /**
@@ -132,7 +77,7 @@ abstract class Auth
     public static function logout()
     {
        self::$user = null;
-       unset($_SESSION['auth_user_id']);
+       unset($_SESSION['auth_uid']);
     }
     
     
@@ -147,7 +92,7 @@ abstract class Auth
         if (!$user->onLogin()) return false;
         
         self::$user = $user;
-        $_SESSION['auth_user_id'] = $user->getId();
+        $_SESSION['auth_uid'] = $user->getId();
         return true;
     }
 
@@ -158,13 +103,24 @@ abstract class Auth
      */
     public static function user()
     {
-        if (!isset(self::$user) && isset($_SESSION['auth_user_id'])) {
-            self::$user = static::fetchUserById($_SESSION['auth_user_id']);
+        if (!isset(self::$user) && isset($_SESSION['auth_uid'])) {
+            self::$user = static::fetchUserById($_SESSION['auth_uid']);
         }
         
         return self::$user;
     }
     
+    
+    /**
+     * Get secret word
+     * 
+     * @return string
+     */
+    protected static function getSecret()
+    {
+        if (!isset(static::$secret)) throw new \Exception("Auth secret isn't set");
+        return static::$secret;
+    }
     
     /**
      * Generate a confirmation hash
