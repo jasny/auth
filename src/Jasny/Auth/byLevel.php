@@ -11,6 +11,14 @@ trait byLevel
      * Authorization levels.
      * Level names should not contain only digits.
      * 
+     * <code>
+     *   protected static $groups = [
+     *     'user' => 1,
+     *     'moderator' => 100,
+     *     'admin' => 1000
+     *   ];
+     * </code>
+     * 
      * @var array
      */
     protected static $levels;
@@ -34,24 +42,24 @@ trait byLevel
     /**
      * Get access level
      * 
-     * @param string $type
+     * @param string $name  Level name
      * @return int
      */
-    public static function getLevel($type)
+    public static function getLevel($name)
     {
-        $level = array_search($type, static::$levels);
-        if ($level === false) throw new \Exception("Authorization level '$type' isn't defined.");
+        $levels = static::getLevels();
+        if (!isset($levels[$name])) throw new \Exception("Authorization level '$name' isn't defined.");
         
-        return $level;
+        return $levels[$name];
     }
 
     /**
      * Check if user has specified access level or more.
      * 
-     * @param int $level
+     * @param int|string $level
      * @return boolean
      */
-    public static function forLevel($level)
+    public static function authorize($level)
     {
         if ($level === 0) return true;
         if (!static::user()) return false;
@@ -59,7 +67,7 @@ trait byLevel
         if (is_string($level) && !ctype_digit($level)) $level = static::getLevel($level);
         
         $role = static::user()->getRole();
-        if (is_string($role) && !ctype_digit($role))$role = static::getLevel($role);
+        if (is_string($role) && !ctype_digit($role)) $role = static::getLevel($role);
         
         return $role >= $level;
     }

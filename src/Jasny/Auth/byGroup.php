@@ -9,7 +9,17 @@ namespace Jasny\Auth;
 trait byGroup
 {
     /**
-     * Authorization groups
+     * Authorization groups and each group is embodies.
+     * 
+     * <code>
+     *   protected static $groups = [
+     *     'user' => [],
+     *     'developer' => ['user'],
+     *     'accountant' => ['user'],
+     *     'admin' => ['developer', 'accountant']
+     *   ];
+     * </code>
+     * 
      * @var array
      */
     protected static $groups;
@@ -31,19 +41,41 @@ trait byGroup
     }
     
     /**
-     * Check if user has specified auth group or more.
+     * Get group and all groups it embodies.
+     *  
+     * @return array
+     */
+    public static function expendGroup($group)
+    {
+        $groups = [$group];
+        
+        if (!empty(self::$groups[$group])) {
+            foreach (self::$groups[$group] as $sub) {
+                $groups = array_merge($groups, static::expandGroup($sub));
+            }
+            
+            $groups = array_unique($groups);
+        }
+        
+        return $groups;
+    }
+    
+    /**
+     * Check if user is in specified access group.
      * 
      * @param int $group
      * @return boolean
      */
-    public static function forGroup($group)
+    public static function authorize($group)
     {
         if (!self::user()) return false;
         
         $roles = self::user()->getRole();
         
         foreach ($roles as $role) {
-            $roles[]
+            $roles[] = array_merge($roles, self::expandGroup($role));
         }
+        
+        return in_array($group, $roles);
     }
 }

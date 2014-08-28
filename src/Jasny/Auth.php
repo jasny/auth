@@ -5,16 +5,10 @@ namespace Jasny;
 use Jasny\Auth\User;
 
 /**
- * Authenticate and authorize
+ * Authentication
  */
 abstract class Auth
 {
-    /**
-     * Authorization levels
-     * @var array
-     */
-    protected static $groups;
-    
     /**
      * Secret word for creating a verification hash
      * @var string
