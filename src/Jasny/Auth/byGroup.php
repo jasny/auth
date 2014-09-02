@@ -45,7 +45,7 @@ trait byGroup
      *  
      * @return array
      */
-    public static function expendGroup($group)
+    public static function expandGroup($group)
     {
         $groups = [$group];
         
@@ -73,9 +73,9 @@ trait byGroup
         $roles = self::user()->getRole();
         
         foreach ($roles as $role) {
-            $roles[] = array_merge($roles, self::expandGroup($role));
+            $roles = array_merge($roles, self::expandGroup($role));
         }
-        
+
         return in_array($group, $roles);
     }
 }
