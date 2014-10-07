@@ -40,6 +40,19 @@ abstract class Auth
     
     
     /**
+     * Persist the current user id across requests
+     */
+    abstract protected static function persistCurrentUser();
+    
+    /**
+     * Get current authenticated user id
+     * 
+     * @return mixed
+     */
+    abstract protected static function getCurrentUserId();
+    
+    
+    /**
      * Generate a password
      * 
      * @param string $password
@@ -48,6 +61,20 @@ abstract class Auth
     public static function password($password, $salt=null)
     {
         return isset($salt) ? crypt($password, $salt) : password_hash($password, PASSWORD_BCRYPT);
+    }
+
+    
+    /**
+     * Fetch user and verify password
+     * 
+     * @return User|false
+     */
+    public static function verify($username, $password)
+    {
+        $user = static::fetchUserByUsername($username);
+        
+        if (!isset($user) || $user->getPassword() !== static::password($password, $user->getPassword())) return false;
+        return $user;
     }
     
     /**
@@ -59,21 +86,11 @@ abstract class Auth
      */
     public static function login($username, $password)
     {
-        $user = static::fetchUserByUsername($username);
-        if (!isset($user) || $user->getPassword() !== self::password($password, $user->getPassword())) return false;
+        $user = static::verify($username, $password);
+        if (!$user) return null;
         
         return static::setUser($user);
     }
-    
-    /**
-     * Logout
-     */
-    public static function logout()
-    {
-       self::$user = null;
-       unset($_SESSION['auth_uid']);
-    }
-    
     
     /**
      * Set the current user
@@ -86,10 +103,25 @@ abstract class Auth
         if (!$user->onLogin()) return false;
         
         self::$user = $user;
-        $_SESSION['auth_uid'] = $user->getId();
+        static::storeCurrentUser();
+        
         return true;
     }
-
+    
+    /**
+     * Logout
+     */
+    public static function logout()
+    {
+        $user = static::user();
+        if (!$user) return;
+        
+        $user->onLogout();
+        
+        static::$user = null;
+        static::storeCurrentUser();
+    }
+    
     /**
      * Get current authenticated user
      * 
@@ -97,11 +129,12 @@ abstract class Auth
      */
     public static function user()
     {
-        if (!isset(self::$user) && isset($_SESSION['auth_uid'])) {
-            self::$user = static::fetchUserById($_SESSION['auth_uid']);
+        if (!isset(static::$user)) {
+            $uid = static::getCurrentUserId();
+            if ($uid) static::$user = static::fetchUserById($uid);
         }
         
-        return self::$user;
+        return static::$user;
     }
     
     
@@ -126,7 +159,7 @@ abstract class Auth
     {
         $id = $user->getId();
         
-        return sprintf('%010s', substr(base_convert(md5($id . self::getSecret()), 16, 36), -10) .
+        return sprintf('%010s', substr(base_convert(md5($id . static::getSecret()), 16, 36), -10) .
             base_convert($id, 10, 36));
     }
     
@@ -139,7 +172,7 @@ abstract class Auth
     public function fetchForConfirmation($hash)
     {
         $id = base_convert(substr($hash, 10), 36, 10);
-        if (self::generateConfirmationHash($id) != $hash) return null; // invalid hash
+        if (static::generateConfirmationHash($id) != $hash) return null; // invalid hash
         
         return static::fetchUserById($id);
     }
@@ -170,7 +203,7 @@ abstract class Auth
         $id = base_convert(substr($hash, 10), 36, 10);
         
         $user = static::fetchUserById($id);
-        if (!$user || self::generatePasswordResetHash($id, $user->getPassword()) != $hash) return null; // invalid hash
+        if (!$user || static::generatePasswordResetHash($id, $user->getPassword()) != $hash) return null; // invalid hash
         
         return $user;
     }

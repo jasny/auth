@@ -43,6 +43,7 @@ trait byGroup
     /**
      * Get group and all groups it embodies.
      *  
+     * @param string $group
      * @return array
      */
     public static function expandGroup($group)
@@ -63,7 +64,7 @@ trait byGroup
     /**
      * Check if user is in specified access group.
      * 
-     * @param int $group
+     * @param string $group
      * @return boolean
      */
     public static function authorize($group)

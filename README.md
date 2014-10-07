@@ -19,22 +19,13 @@ Setup
 `fetchUserByUsername`. Also set the `$secret` property to a [randomly selected](https://www.random.org/passwords/)
 string.
 
-By default 2 authentication levels are defined, normal users (user) and admin users (admin). You can change/add levels
-by overwriting the `$level` property.
+You also need to specify how the current user is persisted across requests. If you want to use normal PHP sessions, you
+can simply use the `Auth\Sessions` trait.
 
 ```php
 class Auth extends Jasny\Auth
 {
-    /**
-     * Authorization levels
-     * @var array
-     */
-    protected static $levels = [
-        1 => 'user',
-        10 => 'moderator',
-        20 => 'admin',
-        50 => 'superadmin'
-    ];
+    use Auth\Sessions;
 
     /**
      * Secret word for creating a verification hash
@@ -107,7 +98,7 @@ class User implements Jasny\Auth\User
      * 
      * @return int
      */
-    public function getSecurityLevel()
+    public function getRole()
     {
         return $this->security_level;
     }
@@ -126,29 +117,103 @@ class User implements Jasny\Auth\User
         
         return true;
     }
+
+    /**
+     * Event called on logout.
+     */
+    public function onLogout()
+    {
+        $this->last_logout = new DateTime();
+        $this->save();
+    }
 }
 ```
+
+### Authorization
+By default the `Auth` class only does authentication. Authorization can be added by impelmenting the `authorize`
+method.
+
+Two traits are predefined to do Authorization: `Auth\byLevel` and `Auth\byGroup`.
+
+#### by level
+The `Auth\byLevel` traits implements authorization based on access levels. Each user get permissions for it's level and
+all levels below.
+
+```php
+class Auth extends Jasny\Auth implements Jasny\Auth\Authorization
+{
+    use Jasny\Auth\byLevel;
+
+    /**
+     * Authorization levels
+     * @var array
+     */
+    protected static $levels = [
+        1 => 'user',
+        10 => 'moderator',
+        20 => 'admin',
+        50 => 'superadmin'
+    ];
+}
+```
+
+#### by level
+The `Auth\byLevel` traits implements authorization using access. An access group may supersede other groups.
+
+```php
+class Auth extends Jasny\Auth implements Jasny\Auth\Authorization
+{
+    use Jasny\Auth\byGroup;
+
+    /**
+     * Authorization groups and each group is supersedes.
+     * @var array
+     */
+    protected static $groups = [
+        'users' => [],
+        'managers' => [],
+        'employees' => ['user'],
+        'developers' => ['employees'],
+        'paralegals' => ['employees'],
+        'lawyers' => ['paralegals'],
+        'lead-developers' => ['developers', 'managers'],
+        'firm-partners' => ['lawyers', 'managers']
+    ];
+}
+```
+
 
 Usage
 ---
 
-### Basic methods
+### Authentication
+
+Verify username and password
+
+    Auth::verify($username, $password);
 
 Login with username and password
 
     Auth::login($username, $password);
 
+Set user without verification
+
+    Auth::setUser($user);
+
 Logout
 
     Auth::logout();
 
-Get logged in user
+Get current user
 
     Auth::user();
 
+
+### Authorization
+
 Check if user is allowed to do something
 
-    if (!Auth::forLevel('admin')) die("Not allowed");
+    if (!Auth::authorized('admin')) die("Not allowed");
 
 
 ### Signup confirmation
