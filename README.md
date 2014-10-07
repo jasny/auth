@@ -9,7 +9,7 @@ Installation
 
 Install using composer
 
-   composer require jasny\auth
+    composer require jasny\auth
 
 
 Setup
@@ -155,34 +155,40 @@ Check if user is allowed to do something
 
 Get a verification hash. Use it in an url and set that url in an e-mail to the user
 
-    // Create a new $user
+```php
+// Create a new $user
     
-    $confirmHash = generateConfirmationHash($user);
-    $url = 'http://' . $_SERVER['HTTP_HOST'] . '/confirm.php?hash=' . $hash;
+$confirmHash = generateConfirmationHash($user);
+$url = 'http://' . $_SERVER['HTTP_HOST'] . '/confirm.php?hash=' . $hash;
     
-    // send email with $url to $user
+// send email with $url to $user
+```
 
 Use the confirmation hash to fetch and verify the user
 
-    // --- confirm.php
+```php
+// --- confirm.php
 
-    $user = Auth::fetchForConfirmation($_GET['hash']);
-    
+$user = Auth::fetchForConfirmation($_GET['hash']);
+```    
 
 ### Forgot password
 
 Forgot password works the same as the signup confirmation.
 
-    // Fetch $user by e-mail
+```php
+// Fetch $user by e-mail
     
-    $confirmHash = generatePasswordResetHash($user);
-    $url = 'http://' . $_SERVER['HTTP_HOST'] . '/reset.php?hash=' . $hash;
+$confirmHash = generatePasswordResetHash($user);
+$url = 'http://' . $_SERVER['HTTP_HOST'] . '/reset.php?hash=' . $hash;
     
-    // send email with $url to $user
+// send email with $url to $user
+```
 
 Use the confirmation hash to fetch and verify the user
 
-    // --- reset.php
+```php
+// --- reset.php
 
-    $user = Auth::fetchForPasswordReset($_GET['hash']);
-    
+$user = Auth::fetchForPasswordReset($_GET['hash']);
+```    

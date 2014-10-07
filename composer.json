@@ -1,6 +1,5 @@
 {
     "name": "jasny/auth",
-    "bin": ["bin/auth"],
     "description": "Authentication and level based authorization",
     "keywords": ["auth"],
     "license": "MIT",
@@ -20,8 +19,8 @@
         "php": ">=5.4.0"
     },
     "autoload": {
-        "psr-4": {
-            "Jasny\\": "src/"
+        "psr-0": {
+            "Jasny\\Auth": "src/"
         }
     }
 }
