@@ -26,6 +26,6 @@ trait Sessions
      */
     protected static function getCurrentUserId()
     {
-        return $_SESSION['auth_uid'];
+        return isset($_SESSION['auth_uid']) ? $_SESSION['auth_uid'] : null;
     }
 }

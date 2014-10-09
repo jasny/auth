@@ -103,7 +103,7 @@ abstract class Auth
         if (!$user->onLogin()) return false;
         
         self::$user = $user;
-        static::storeCurrentUser();
+        static::persistCurrentUser();
         
         return true;
     }
@@ -119,7 +119,7 @@ abstract class Auth
         $user->onLogout();
         
         static::$user = null;
-        static::storeCurrentUser();
+        static::persistCurrentUser();
     }
     
     /**
