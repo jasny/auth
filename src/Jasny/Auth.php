@@ -5,7 +5,7 @@ namespace Jasny;
 use Jasny\Auth\User;
 
 /**
- * Authentication
+ * Authentication and access control
  */
 abstract class Auth
 {
@@ -137,6 +137,28 @@ abstract class Auth
         return static::$user;
     }
     
+    /**
+     * Check if the current user is logged in and (optionally) had specified role.
+     * 
+     * <code>
+     *   if (!Auth::access('manager')) {
+     *     http_response_code(403); // Forbidden
+     *     echo "You are not allowed to view this page";
+     *     exit();
+     *   }
+     * </code>
+     * 
+     * @param mixed $role
+     * @return boolean
+     */
+    public static function access($role = null)
+    {
+        if (!static::user()) return false;
+        if (!isset($role)) return true;
+
+        return static::user() instanceof Authz\User && static::user()->hasRole($role);
+    }
+
     
     /**
      * Get secret word

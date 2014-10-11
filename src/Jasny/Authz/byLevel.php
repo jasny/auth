@@ -1,9 +1,22 @@
 <?php
 
-namespace Jasny\Auth;
+namespace Jasny\Authz;
 
 /**
  * Authorize by access level.
+ * 
+ * IMPORTANT: Your user class also needs to implement Jasny\Authz\User
+ * <code>
+ *   class User implements Jasny\Auth\User, Jasny\Authz\User
+ *   {
+ *     ...
+ *   
+ *     public function hasRole($role)
+ *     {
+ *       return Auth::getLevel($role) &lt;= $this->accessLevel;
+ *     }
+ *   }
+ * </code>
  */
 trait byLevel
 {
@@ -12,7 +25,7 @@ trait byLevel
      * Level names should not contain only digits.
      * 
      * <code>
-     *   protected static $groups = [
+     *   protected static $levels = [
      *     'user' => 1,
      *     'moderator' => 100,
      *     'admin' => 1000
@@ -51,24 +64,5 @@ trait byLevel
         if (!isset($levels[$name])) throw new \Exception("Authorization level '$name' isn't defined.");
         
         return $levels[$name];
-    }
-
-    /**
-     * Check if user has specified access level or more.
-     * 
-     * @param int|string $level
-     * @return boolean
-     */
-    public static function authorize($level)
-    {
-        if ($level === 0) return true;
-        if (!static::user()) return false;
-        
-        if (is_string($level) && !ctype_digit($level)) $level = static::getLevel($level);
-        
-        $role = static::user()->getRole();
-        if (is_string($role) && !ctype_digit($role)) $role = static::getLevel($role);
-        
-        return $role >= $level;
     }
 }

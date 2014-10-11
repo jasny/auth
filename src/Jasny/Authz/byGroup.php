@@ -1,10 +1,23 @@
 <?php
 
-namespace Jasny\Auth;
+namespace Jasny\Authz;
 
 /**
  * Authorize by access group.
  * Can be used for ACL (Access Control List).
+ * 
+ * IMPORTANT: Your user class also needs to implement Jasny\Authz\User
+ * <code>
+ *   class User implements Jasny\Auth\User, Jasny\Authz\User
+ *   {
+ *     ...
+ *   
+ *     public function hasRole($role)
+ *     {
+ *       return in_array($role, Auth::expandGroup($this->group));
+ *     }
+ *   }
+ * </code>
  */
 trait byGroup
 {
@@ -43,40 +56,21 @@ trait byGroup
     /**
      * Get group and all groups it embodies.
      *  
-     * @param string $group
+     * @param string|array $groups
      * @return array
      */
-    public static function expandGroup($group)
+    public static function expandGroup($groups)
     {
-        $groups = [$group];
+        if (!is_array($groups)) $groups = (array)$groups;
         
-        if (!empty(self::$groups[$group])) {
-            foreach (self::$groups[$group] as $sub) {
-                $groups = array_merge($groups, static::expandGroup($sub));
+        $expanded = $groups;
+        
+        foreach ($groups as $group) {
+            if (!empty(self::$groups[$group])) {
+                $groups = array_merge($groups, static::expandGroup(self::$groups[$group]));
             }
-            
-            $groups = array_unique($groups);
         }
         
-        return $groups;
-    }
-    
-    /**
-     * Check if user is in specified access group.
-     * 
-     * @param string $group
-     * @return boolean
-     */
-    public static function authorize($group)
-    {
-        if (!self::user()) return false;
-        
-        $roles = self::user()->getRole();
-        
-        foreach ($roles as $role) {
-            $roles = array_merge($roles, self::expandGroup($role));
-        }
-
-        return in_array($group, $roles);
+        return array_unique($expanded);
     }
 }

@@ -3,7 +3,7 @@
 namespace Jasny\Auth;
 
 /**
- * Methods for a record supporting authentication
+ * Entity used for authentication
  */
 interface User
 {
@@ -27,16 +27,6 @@ interface User
      * @return string
      */
     public function getPassword();
-    
-    /**
-     * Get authentication level or group(s).
-     * 
-     * @internal Return level (int) or level name (string) for level based auth.
-     * @internal Return group (string) or groups (array) for group base auth.
-     * 
-     * @return int|string|array
-     */
-    public function getRole();
     
     
     /**
