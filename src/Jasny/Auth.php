@@ -191,7 +191,7 @@ abstract class Auth
      * @parma string $hash  confirmation hash
      * @return User
      */
-    public function fetchForConfirmation($hash)
+    public static function fetchForConfirmation($hash)
     {
         $id = base_convert(substr($hash, 10), 36, 10);
         if (static::generateConfirmationHash($id) != $hash) return null; // invalid hash
