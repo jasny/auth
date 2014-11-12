@@ -220,7 +220,7 @@ abstract class Auth
      * @param string $hash
      * @return User
      */
-    public function fetchForPasswordReset($hash)
+    public static function fetchForPasswordReset($hash)
     {
         $id = base_convert(substr($hash, 10), 36, 10);
         
