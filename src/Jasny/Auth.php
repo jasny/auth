@@ -73,7 +73,7 @@ abstract class Auth
     {
         $user = static::fetchUserByUsername($username);
         
-        if (!isset($user) || $user->getPassword() !== static::password($password, $user->getPassword())) return false;
+        if (!isset($user) || !$user || $user->getPassword() !== static::password($password, $user->getPassword())) return false;
         return $user;
     }
     
