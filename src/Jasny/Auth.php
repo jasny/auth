@@ -3,11 +3,29 @@
 namespace Jasny;
 
 use Jasny\Auth\User;
+use Jasny\Auth\Fetching;
 
 /**
  * Authentication and access control
+ * 
+ * <code>
+ * class MyAuth extends Jasny\Auth
+ * {
+ *     use Jasny\Auth\Sessions;
+ * 
+ *     public static function fetchUserById($id)
+ *     {
+ *         ...
+ *     }
+ * 
+ *     public static function fetchUserByUsername($username)
+ *     {
+ *         ...
+ *     }
+ * }
+ * </code>
  */
-abstract class Auth
+abstract class Auth implements Fetching
 {
     /**
      * Secret word for creating a verification hash
@@ -23,33 +41,22 @@ abstract class Auth
     
     
     /**
-     * Fetch a user by ID
-     * 
-     * @param int $id
-     * @return User
-     */
-    abstract public static function fetchUserById($id);
-
-    /**
-     * Fetch a user by username
-     * 
-     * @param string $username
-     * @return User
-     */
-    abstract public static function fetchUserByUsername($username);
-    
-    
-    /**
      * Persist the current user id across requests
      */
-    abstract protected static function persistCurrentUser();
+    protected static function persistCurrentUser()
+    {
+        // Black hole
+    }
     
     /**
      * Get current authenticated user id
      * 
      * @return mixed
      */
-    abstract protected static function getCurrentUserId();
+    protected static function getCurrentUserId()
+    {
+        return null;
+    }
     
     
     /**
