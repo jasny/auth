@@ -1,6 +1,6 @@
 <?php
 
-namespace Auth;
+namespace Jasny\Auth;
 
 /**
  * Methods that need to be implemented for fetching user info
