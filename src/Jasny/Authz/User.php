@@ -13,5 +13,5 @@ interface User
      * @param string|int $role
      * @return boolean
      */
-    public static function hasRole($role);
+    public function hasRole($role);
 }
