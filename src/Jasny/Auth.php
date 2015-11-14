@@ -46,6 +46,11 @@ abstract class Auth implements Fetching
     protected static function persistCurrentUser()
     {
         // Black hole
+        trigger_error(
+            "Method for remembering the current user isn't implemented. " .
+            "You can use the Jasny\Auth\Sessions trait to store the current user in a session",
+            E_USER_NOTICE
+        );
     }
     
     /**
@@ -107,7 +112,7 @@ abstract class Auth implements Fetching
      */
     public static function setUser(User $user)
     {
-        if (!$user->onLogin()) return false;
+        if ($user->onLogin() === false) return false;
         
         self::$user = $user;
         static::persistCurrentUser();
