@@ -157,8 +157,8 @@ class Auth extends Jasny\Auth implements Jasny\Auth\Authorization
 }
 ```
 
-#### by level
-The `Auth\byLevel` traits implements authorization using access. An access group may supersede other groups.
+#### by group
+The `Auth\byGroup` traits implements authorization using access groups. An access group may supersede other groups.
 
 ```php
 class Auth extends Jasny\Auth implements Jasny\Auth\Authorization
