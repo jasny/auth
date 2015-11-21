@@ -94,16 +94,6 @@ class User implements Jasny\Auth\User
     }
 
     /**
-     * Get the user's security level
-     * 
-     * @return int
-     */
-    public function getRole()
-    {
-        return $this->security_level;
-    }
-
-    /**
      * Event called on login.
      * 
      * @return boolean  false cancels the login
@@ -133,16 +123,16 @@ class User implements Jasny\Auth\User
 By default the `Auth` class only does authentication. Authorization can be added by impelmenting the `authorize`
 method.
 
-Two traits are predefined to do Authorization: `Auth\byLevel` and `Auth\byGroup`.
+Two traits are predefined to do Authorization: `Authz\byLevel` and `Authz\byGroup`.
 
 #### by level
-The `Auth\byLevel` traits implements authorization based on access levels. Each user get permissions for it's level and
+The `Authz\byLevel` traits implements authorization based on access levels. Each user get permissions for it's level and
 all levels below.
 
 ```php
 class Auth extends Jasny\Auth implements Jasny\Auth\Authorization
 {
-    use Jasny\Auth\byLevel;
+    use Jasny\Authz\byLevel;
 
     /**
      * Authorization levels
@@ -157,13 +147,26 @@ class Auth extends Jasny\Auth implements Jasny\Auth\Authorization
 }
 ```
 
+For authorization the user object also needs to implement `Jasny\Authz\User`, adding the `hasRole()` method.
+
+    /**
+     * Check if the user has the specified security level
+     * 
+     * @param int $level
+     * @return boolean
+     */
+    public function hasRole($level)
+    {
+        return $this->security_level >= $level;
+    }
+
 #### by group
 The `Auth\byGroup` traits implements authorization using access groups. An access group may supersede other groups.
 
 ```php
 class Auth extends Jasny\Auth implements Jasny\Auth\Authorization
 {
-    use Jasny\Auth\byGroup;
+    use Jasny\Authz\byGroup;
 
     /**
      * Authorization groups and each group is supersedes.
@@ -181,6 +184,19 @@ class Auth extends Jasny\Auth implements Jasny\Auth\Authorization
     ];
 }
 ```
+
+For authorization the user object also needs to implement `Jasny\Authz\User`, adding the `hasRole()` method.
+
+    /**
+     * Check if the user is in the specified security group
+     * 
+     * @param string $group
+     * @return boolean
+     */
+    public function hasRole($group)
+    {
+        return in_array($group, Auth::expandGroup($this->group));
+    }
 
 
 Usage
