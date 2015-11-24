@@ -67,7 +67,7 @@ trait byGroup
         
         foreach ($groups as $group) {
             if (!empty(self::$groups[$group])) {
-                $groups = array_merge($groups, static::expandGroup(self::$groups[$group]));
+                $expanded = array_merge($groups, static::expandGroup(self::$groups[$group]));
             }
         }
         
