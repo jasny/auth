@@ -6,7 +6,21 @@ namespace Jasny\Authz;
  * Authorize by access group.
  * Can be used for ACL (Access Control List).
  * 
- * IMPORTANT: Your user class also needs to implement Jasny\Authz\User
+ * <code>
+ *   class Auth extends Jasny\Auth
+ *   {
+ *     use Jasny\Authz\ByGroup;
+ *
+ *     protected static $groups = [
+ *       'user' => [],
+ *       'developer' => ['user'],
+ *       'accountant' => ['user'],
+ *       'admin' => ['developer', 'accountant']
+ *     ];
+ *   }
+ * </code>
+ *
+ * IMPORTANT: Your User class also needs to implement Jasny\Authz\User
  * <code>
  *   class User implements Jasny\Auth\User, Jasny\Authz\User
  *   {
@@ -21,23 +35,6 @@ namespace Jasny\Authz;
  */
 trait byGroup
 {
-    /**
-     * Authorization groups and each group is embodies.
-     * 
-     * <code>
-     *   protected static $groups = [
-     *     'user' => [],
-     *     'developer' => ['user'],
-     *     'accountant' => ['user'],
-     *     'admin' => ['developer', 'accountant']
-     *   ];
-     * </code>
-     * 
-     * @var array
-     */
-    protected static $groups;
-    
-    
     /**
      * Get all auth groups
      *  
@@ -56,18 +53,19 @@ trait byGroup
     /**
      * Get group and all groups it embodies.
      *  
-     * @param string|array $groups
+     * @param string|array $groups  Single group or array of groups
      * @return array
      */
     public static function expandGroup($groups)
     {
         if (!is_array($groups)) $groups = (array)$groups;
         
+        $allGroups = static::getGroups();
         $expanded = $groups;
         
         foreach ($groups as $group) {
-            if (!empty(self::$groups[$group])) {
-                $expanded = array_merge($groups, static::expandGroup(self::$groups[$group]));
+            if (!empty($allGroups[$group])) {
+                $expanded = array_merge($groups, static::expandGroup($allGroups[$group]));
             }
         }
         
