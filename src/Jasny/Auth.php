@@ -186,12 +186,12 @@ abstract class Auth implements Fetching
     /**
      * Generate a confirmation hash
      * 
-     * @param User $user
+     * @param User|int $user
      * @return string
      */
     public static function generateConfirmationHash($user)
     {
-        $id = $user->getId();
+        $id = is_object($user) ? $user->getId() : $user;
         
         return sprintf('%010s', substr(base_convert(md5($id . static::getSecret()), 16, 36), -10) .
             base_convert($id, 10, 36));
@@ -237,7 +237,7 @@ abstract class Auth implements Fetching
         $id = base_convert(substr($hash, 10), 36, 10);
         
         $user = static::fetchUserById($id);
-        if (!$user || static::generatePasswordResetHash($id, $user->getPassword()) != $hash) return null; // invalid hash
+        if (!$user || static::generatePasswordResetHash($user) != $hash) return null; // invalid hash
         
         return $user;
     }
