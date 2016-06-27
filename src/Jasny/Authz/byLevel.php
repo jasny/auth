@@ -34,7 +34,7 @@ trait byLevel
      * 
      * @var array
      */
-    protected static $levels;
+    //protected static $levels;
     
     
     /**
