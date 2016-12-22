@@ -60,41 +60,6 @@ class AuthTest extends TestCase
         $this->assertFalse($this->auth->verifyCredentials($user, ''));
     }
     
-    
-    public function testLogin()
-    {
-        $hash = password_hash('abc', PASSWORD_BCRYPT);
-        
-        $user = $this->createMock(Auth\User::class);
-        $user->method('getHashedPassword')->willReturn($hash);
-        $user->expects($this->once())->method('onLogin');
-        
-        $this->auth->expects($this->once())->method('fetchUserByUsername')->with('john')->willReturn($user);
-        $this->auth->expects($this->once())->method('persistCurrentUser');
-        
-        $result = $this->auth->login('john', 'abc');
-        
-        $this->assertSame($user, $result);
-        $this->assertSame($user, $this->auth->user());
-    }
-    
-    public function testLoginWithIncorrectPassword()
-    {
-        $hash = password_hash('abc', PASSWORD_BCRYPT);
-        
-        $user = $this->createMock(Auth\User::class);
-        $user->method('getHashedPassword')->willReturn($hash);
-        $user->expects($this->never())->method('onLogin');
-        
-        $this->auth->expects($this->once())->method('fetchUserByUsername')->with('john')->willReturn($user);
-        $this->auth->expects($this->never())->method('persistCurrentUser');
-        
-        $result = $this->auth->login('john', 'god');
-        
-        $this->assertNull($result);
-        $this->assertNull($this->auth->user());
-    }
-    
     /**
      * @return Auth|MockObject
      */
@@ -143,5 +108,55 @@ class AuthTest extends TestCase
         
         $this->assertNull($result);
         $this->assertSame($oldUser, $this->auth->user());
+    }
+    
+    
+    public function testLogin()
+    {
+        $hash = password_hash('abc', PASSWORD_BCRYPT);
+        
+        $user = $this->createMock(Auth\User::class);
+        $user->method('getHashedPassword')->willReturn($hash);
+        $user->expects($this->once())->method('onLogin');
+        
+        $this->auth->expects($this->once())->method('fetchUserByUsername')->with('john')->willReturn($user);
+        $this->auth->expects($this->once())->method('persistCurrentUser');
+        
+        $result = $this->auth->login('john', 'abc');
+        
+        $this->assertSame($user, $result);
+        $this->assertSame($user, $this->auth->user());
+    }
+    
+    public function testLoginWithIncorrectPassword()
+    {
+        $hash = password_hash('abc', PASSWORD_BCRYPT);
+        
+        $user = $this->createMock(Auth\User::class);
+        $user->method('getHashedPassword')->willReturn($hash);
+        $user->expects($this->never())->method('onLogin');
+        
+        $this->auth->expects($this->once())->method('fetchUserByUsername')->with('john')->willReturn($user);
+        $this->auth->expects($this->never())->method('persistCurrentUser');
+        
+        $result = $this->auth->login('john', 'god');
+        
+        $this->assertNull($result);
+        $this->assertNull($this->auth->user());
+    }
+    
+    public function testLogout()
+    {
+        $user = $this->createMock(Auth\User::class);
+        $user->expects($this->once())->method('onLogout');
+        
+        $this->auth->setUser($user);
+        
+        $this->auth->logout();
+        
+        $this->assertNull($this->auth->user());
+        
+        // Logout again shouldn't really do anything
+        $this->auth->logout();
     }
 }
