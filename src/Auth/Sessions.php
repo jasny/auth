@@ -50,7 +50,7 @@ trait Sessions
      */
     protected function getCurrentUserId()
     {
-        return $this->getSessionData(['auth_uid']);
+        return $this->getSessionData('auth_uid');
     }
     
     /**
@@ -58,6 +58,7 @@ trait Sessions
      */
     protected function persistCurrentUser()
     {
-        $this->updateSession('auth_uid', $this->user() ? $this->user()->getId() : null);
+        $user = $this->user();
+        $this->updateSessionData('auth_uid', $user ? $user->getId() : null);
     }
 }

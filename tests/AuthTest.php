@@ -60,6 +60,24 @@ class AuthTest extends TestCase
         $this->assertFalse($this->auth->verifyCredentials($user, ''));
     }
     
+    
+    public function testUserWithoutSessionUser()
+    {
+        $user = $this->createMock(Auth\User::class);
+        $user->expects($this->never())->method('onLogin');
+        
+        $this->auth->expects($this->once())->method('getCurrentUserId')->willReturn(123);
+        $this->auth->expects($this->once())->method('fetchUserById')->with(123)->willReturn($user);
+        
+        $this->assertSame($user, $this->auth->user());
+    }
+    
+    public function testUserWithSessionUser()
+    {
+        $this->assertNull($this->auth->user());
+    }
+    
+    
     /**
      * @return Auth|MockObject
      */
