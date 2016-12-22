@@ -19,8 +19,11 @@
         "php": ">=5.4.0"
     },
     "autoload": {
-        "psr-0": {
-            "Jasny\\Auth": "src/"
+        "psr-4": {
+            "Jasny\\": "src/"
         }
+    },
+    "require-dev": {
+        "jasny/php-code-quality": "^2.0"
     }
 }

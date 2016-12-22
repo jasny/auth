@@ -10,7 +10,7 @@ interface User
     /**
      * Get user id
      * 
-     * @return mixed
+     * @return int|string
      */
     public function getId();
     
@@ -26,7 +26,7 @@ interface User
      * 
      * @return string
      */
-    public function getPassword();
+    public function getHashedPassword();
     
     
     /**

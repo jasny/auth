@@ -11,7 +11,7 @@ namespace Jasny\Authz;
  *   {
  *     use Jasny\Authz\ByGroup;
  *
- *     protected static $groups = [
+ *     protected $groups = [
  *       'user' => [],
  *       'developer' => ['user'],
  *       'accountant' => ['user'],
@@ -19,35 +19,27 @@ namespace Jasny\Authz;
  *     ];
  *   }
  * </code>
- *
- * IMPORTANT: Your User class also needs to implement Jasny\Authz\User
- * <code>
- *   class User implements Jasny\Auth\User, Jasny\Authz\User
- *   {
- *     ...
- *   
- *     public function hasRole($role)
- *     {
- *       return in_array($role, Auth::expandGroup($this->group));
- *     }
- *   }
- * </code>
  */
-trait byGroup
+trait ByGroup
 {
+    /**
+     * Authentication groups
+     * @internal Overwrite this in your child class
+     * 
+     * @var string[]
+     */
+    protected $groups = [
+        'user' => []
+    ];
+    
     /**
      * Get all auth groups
      *  
      * @return array
      */
-    public static function getGroups()
+    public function getGroups()
     {
-        if (!isset(static::$groups)) {
-            trigger_error("Auth groups aren't set", E_USER_WARNING);
-            return [];
-        }
-        
-        return static::$groups;
+        return $this->groups;
     }
     
     /**
@@ -56,7 +48,7 @@ trait byGroup
      * @param string|array $groups  Single group or array of groups
      * @return array
      */
-    public static function expandGroup($groups)
+    public function expandGroup($groups)
     {
         if (!is_array($groups)) $groups = (array)$groups;
         
