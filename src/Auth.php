@@ -69,6 +69,40 @@ abstract class Auth
     
     
     /**
+     * Get current authenticated user
+     * 
+     * @return User|null
+     */
+    public function user()
+    {
+        if (!isset($this->user)) {
+            $uid = $this->getCurrentUserId();
+            $this->user = $uid ? ($this->fetchUserById($uid) ?: false) : false;
+        }
+        
+        return $this->user ?: null;
+    }
+    
+    /**
+     * Set the current user
+     * 
+     * @param User $user
+     * @return boolean
+     */
+    public function setUser(User $user)
+    {
+        if ($user->onLogin() === false) {
+            return null;
+        }
+        
+        $this->user = $user;
+        $this->persistCurrentUser();
+        
+        return $this->user;
+    }
+    
+    
+    /**
      * Hash a password
      * 
      * @param string $password
@@ -76,6 +110,10 @@ abstract class Auth
      */
     public function hashPassword($password)
     {
+        if (!is_string($password) || $password === '') {
+            throw new \InvalidArgumentException("Password should be a (non-empty) string");
+        }
+        
         return password_hash($password, PASSWORD_BCRYPT);
     }
     
@@ -100,31 +138,13 @@ abstract class Auth
      */
     public function login($username, $password)
     {
-        $user = static::fetchUserByUsername($username);
+        $user = $this->fetchUserByUsername($username);
 
         if (!$this->verifyCredentials($user, $password)) {
             return null;
         }
         
         return static::setUser($user);
-    }
-    
-    /**
-     * Set the current user
-     * 
-     * @param User $user
-     * @return boolean
-     */
-    public static function setUser(User $user)
-    {
-        if ($user->onLogin() === false) {
-            return null;
-        }
-        
-        $this->user = $user;
-        $this->persistCurrentUser();
-        
-        return $this->user;
     }
     
     /**
@@ -142,21 +162,5 @@ abstract class Auth
         
         $this->user = false;
         $this->persistCurrentUser();
-    }
-    
-    
-    /**
-     * Get current authenticated user
-     * 
-     * @return User|null
-     */
-    public function user()
-    {
-        if (!isset($this->user)) {
-            $uid = $this->getCurrentUserId();
-            $this->user = $uid ? ($this->fetchUserById($uid) ?: false) : false;
-        }
-        
-        return $this->user ?: null;
     }
 }
