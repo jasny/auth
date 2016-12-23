@@ -24,6 +24,10 @@
         }
     },
     "require-dev": {
-        "jasny/php-code-quality": "^2.0"
+        "jasny/php-code-quality": "^2.0",
+        "hashids/hashids": "~2.0.0"
+    },
+    "suggest": {
+        "hashids/hashids": "For generating confirmation tokens"
     }
 }

@@ -5,9 +5,9 @@ namespace Jasny\Auth;
 use Hashids\Hashids;
 
 /**
- * Generate and verify a hash to confirm a new user.
+ * Generate and verify confirmation tokens.
  * 
- * Uses the hashids library
+ * Uses the hashids library.
  * @link http://hashids.org/php/
  * 
  * <code>
@@ -43,16 +43,35 @@ trait Confirmation
 
     
     /**
+     * Create a heashids interface
+     * 
+     * @param string $secret
+     * @return Hashids
+     */
+    protected function createHashids($subject)
+    {
+        if (!class_exists(Hashids::class)) {
+            // @codeCoverageIgnoreStart
+            throw new \Exception("Unable to generate a confirmation hash: Hashids library is not installed");
+            // @codeCoverageIgnoreEnd
+        }
+        
+        $salt = hash('sha256', $this->getConfirmationSecret() . $subject);
+        
+        return new Hashids($salt);
+    }
+    
+    /**
      * Generate a confirm hash based on a user id
      * 
      * @param string $id
-     * @return string
+     * @return int
      */
     protected function generateConfirmHash($id)
     {
-        $confirmHash = hash('sha256', $id . $this->getConfirmationSecret());
+        $confirmHash = md5($id . $this->getConfirmationSecret());
         
-        return sprintf('%012s', substr(base_convert($confirmHash, 16, 36), -12));
+        return hexdec(substr($confirmHash, 0, 8));
     }
     
     /**
@@ -64,19 +83,15 @@ trait Confirmation
      */
     public function getConfirmationToken(User $user, $subject)
     {
-        if (!class_exists(Hashids::class)) {
-            throw new \Exception("Unable to generate a confirmation hash: Hashids library is not installed");
-        }
+        $hashids = $this->createHashids($subject);
         
         $id = $user->getId();
         $confirm = $this->generateConfirmHash($id);
         
-        $salt = hash('sha256', $this->getConfirmationSecret());
-        $hashids = new Hashids($salt);
+        $parts = array_map('hexdec', str_split($id, 8)); // Will work if id is hexidecimal or decimal
+        $parts[] = $confirm;
         
-        $decId = hexdec($id); // Will work if id is hexidecimal or decimal
-        
-        return $hashids->encode($subject, $decId, $confirm);
+        return $hashids->encode($parts);
     }
     
     /**
@@ -88,17 +103,18 @@ trait Confirmation
      */
     public function fetchUserForConfirmation($token, $subject)
     {
-        if (!class_exists(Hashids::class)) {
-            throw new \Exception("Unable to generate a confirmation hash: Hashids library is not installed");
+        $hashids = $this->createHashids($subject);
+        
+        $parts = $hashids->decode($token);
+        
+        if (empty($parts)) {
+            return null;
         }
         
-        $hashids = new Hashids($this->getConfirmationSalt());
+        $confirm = array_pop($parts);
+        $id = join(array_map('dechex', $parts));
         
-        list($decId, $tokenSubject, $confirm) = (array)$hashids->decode($token) + [null, null, null];
-        
-        $id = isset($decId) ? hexdec($decId) : null; // Inverse action of getConfirmationToken
-        
-        if (!isset($id) || $tokenSubject !== $subject || $confirm !== $this->generateConfirmHash($id)) {
+        if ($confirm !== $this->generateConfirmHash($id)) {
             return null;
         }
 
