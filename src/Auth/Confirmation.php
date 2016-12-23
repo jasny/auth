@@ -62,36 +62,44 @@ trait Confirmation
     }
     
     /**
-     * Generate a confirm hash based on a user id
+     * Generate a confirm checksum based on a user id and secret.
+     * 
+     * For more entropy overwrite this method:
+     * <code>
+     *   protected function getConfirmationChecksum($id, $len = 32)
+     *   {
+     *     return parent::getConfirmationChecksum($id, $len);
+     *   }
+     * </code>
      * 
      * @param string $id
+     * @param int    $len  The number of characters of the hash (max 64)
      * @return int
      */
-    protected function generateConfirmHash($id)
+    protected function getConfirmationChecksum($id, $len = 16)
     {
-        $confirmHash = md5($id . $this->getConfirmationSecret());
-        
-        return hexdec(substr($confirmHash, 0, 8));
+        $hash = hash('sha256', $id . $this->getConfirmationSecret());
+        return substr($hash, 0, $len);
     }
     
     /**
      * Generate a confirmation token
      * 
-     * @param User   $user
-     * @param string $subject  What needs to be confirmed?
+     * @param User    $user
+     * @param string  $subject      What needs to be confirmed?
+     * @param boolean $usePassword  Use password hash in checksum
      * @return string
      */
-    public function getConfirmationToken(User $user, $subject)
+    public function getConfirmationToken(User $user, $subject, $usePassword = false)
     {
         $hashids = $this->createHashids($subject);
         
         $id = $user->getId();
-        $confirm = $this->generateConfirmHash($id);
+        $pwd = $usePassword ? $user->getHashedPassword() : '';
         
-        $parts = array_map('hexdec', str_split($id, 8)); // Will work if id is hexidecimal or decimal
-        $parts[] = $confirm;
+        $confirm = $this->getConfirmationChecksum($id . $pwd);
         
-        return $hashids->encode($parts);
+        return $hashids->encodeHex($confirm . $id);
     }
     
     /**
@@ -99,25 +107,35 @@ trait Confirmation
      * 
      * @param string $token    Confirmation token
      * @param string $subject  What needs to be confirmed?
+     * @param boolean $usePassword  Use password hash in checksum
      * @return User|null
      */
-    public function fetchUserForConfirmation($token, $subject)
+    public function fetchUserForConfirmation($token, $subject, $usePassword = false)
     {
         $hashids = $this->createHashids($subject);
         
-        $parts = $hashids->decode($token);
+        $idAndConfirm = $hashids->decodeHex($token);
         
-        if (empty($parts)) {
+        if (empty($idAndConfirm)) {
             return null;
         }
         
-        $confirm = array_pop($parts);
-        $id = join(array_map('dechex', $parts));
+        $len = strlen($this->getConfirmationChecksum(''));
+        $id = substr($idAndConfirm, $len);
+        $confirm = substr($idAndConfirm, 0, $len);
         
-        if ($confirm !== $this->generateConfirmHash($id)) {
-            return null;
-        }
+        $user = $this->fetchUserById($id);
 
-        return $this->fetchUserById($id);
+        if (!isset($user)) {
+            return null;
+        }
+        
+        $pwd = $usePassword ? $user->getHashedPassword() : '';
+        
+        if ($confirm !== $this->getConfirmationChecksum($id . $pwd)) {
+            return null;
+        }
+        
+        return $user;
     }
 }

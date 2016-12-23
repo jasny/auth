@@ -219,9 +219,11 @@ must return the role of the user or array of roles.
 By using the `Auth\Confirmation` trait, you can generate and verify confirmation tokens. This is useful to require a
 use to confirm signup by e-mail or for a password reset functionality.
 
-You need to add a `getConfirmationSecret()` that returns a string that is unique and only known to your application. For
-security, it's best to configure it through an environment variable rather than putting it in your code.
+You need to add a `getConfirmationSecret()` that returns a string that is unique and only known to your application.
+Make sure the confirmation secret is suffiently long, like 20 random characters. For added security, it's better to
+ configure it through an environment variable rather than putting it in your code.
 
+```php
 class Auth extends Jasny\Auth
 {
   use Jasny\Auth\Confirmation;
@@ -230,6 +232,31 @@ class Auth extends Jasny\Auth
   {
     return getenv('AUTH_CONFIRMATION_SECRET');
   }
+}
+```
+
+#### Security
+
+The confirmation token exists of the user id and a checksum, which is obfuscated using [hashids](http://hashids.org/).
+
+A casual user will be unable to get the userid from the hash, but hashids is _not a true encryption algorithm_ and with
+enough tokens a hacker might be able to determine the salt and extract the user id and checksum from tokens. _Note that
+knowing the salt doesn't mean you know the configured secret._
+
+The checksum is the first 16 bytes of the sha256 hash of user id + secret. For better security you might add want to
+use more than 12 characters. This does result in a larger string for the token.
+
+```php
+class Auth extends Jasny\Auth
+{   
+  ...
+
+  protected function getConfirmationChecksum($id, $len = 32)
+  {
+    return parent::getConfirmationChecksum($id, $len);
+  }
+
+  ...
 }
 
 
@@ -320,17 +347,18 @@ if (!$user) {
 
 Get a verification token. Use it in an url and set that url in an e-mail to the user.
 
-We use the hashed password in the token subject, so that the token will stop working once the password is changed.
+Setting the 3th argument to `true` will use the hashed password of the user in the checksum. This means that the token
+will stop working once the password is changed.
 
 ```php
 // Fetch $user by e-mail
 
 $auth = new MyAuth();
-$confirmationToken = $auth->getConfirmationToken($user, 'reset-password:' . $user->getHashedPassword());
+$confirmationToken = $auth->getConfirmationToken($user, 'reset-password', true);
 
 $host = $_SERVER['HTTP_HOST'];
 $url = "http://$host/reset.php?token=$confirmationToken";
-    
+
 mail(
   $user->getEmail(),
   "Welcome to our site",
@@ -342,7 +370,7 @@ Use the confirmation token to fetch and verify resetting the password
 
 ```php
 $auth = new MyAuth();
-$user = $auth->fetchUserForConfirmation($_GET['token'], 'reset-password:' . $user->getHashedPassword());
+$user = $auth->fetchUserForConfirmation($_GET['token'], 'reset-password', true);
 
 if (!$user) {
     http_response_code(400);
