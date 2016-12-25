@@ -89,7 +89,7 @@ class ConfirmationTest extends TestCase
         $salt = hash('sha256', 'very secret' . 'foo bar'); // hashids salt has been compromized
         $hashids = new Hashids($salt);
         
-        $token = $hashids->encodeHex(str_repeat('0', 12) . '123'); // token with id and invalid checksum
+        $token = $hashids->encodeHex(str_repeat('0', 16) . '123'); // token with id and invalid checksum
         
         $this->auth->method('getConfirmationSecret')->willReturn('very secret');
         $this->auth->expects($this->once())->method('fetchUserById')->with(123)->willReturn($user);
