@@ -5,12 +5,15 @@ namespace Jasny\Auth;
 use Jasny\Auth;
 use PHPUnit_Framework_TestCase as TestCase;
 use PHPUnit_Framework_MockObject_MockObject as MockObject;
+use Jasny\TestHelper;
 
 /**
  * @covers Jasny\Auth\Sessions
  */
 class SessionsAuth extends TestCase
 {
+    use TestHelper;
+    
     /**
      * @var Auth\Sessions|MockObject 
      */
@@ -52,34 +55,17 @@ class SessionsAuth extends TestCase
     }
     
     
-    /**
-     * Call a protected method
-     * 
-     * @param object $object
-     * @param string $method
-     * @param array  $args
-     * @return mixed
-     */
-    protected function callProtectedMethod($object, $method, array $args = [])
-    {
-        $refl = new \ReflectionMethod(get_class($object), $method);
-        $refl->setAccessible(true);
-        
-        return $refl->invokeArgs($object, $args);
-    }
-    
-    
     public function testGetCurrentUserIdWithUser()
     {
         $_SESSION['auth_uid'] = 123;
         
-        $id = $this->callProtectedMethod($this->auth, 'getCurrentUserId');
+        $id = $this->callPrivateMethod($this->auth, 'getCurrentUserId');
         $this->assertEquals(123, $id);
     }
     
     public function testGetCurrentUserIdWithoutUser()
     {
-        $id = $this->callProtectedMethod($this->auth, 'getCurrentUserId');
+        $id = $this->callPrivateMethod($this->auth, 'getCurrentUserId');
         $this->assertNull($id);
     }
     
@@ -93,7 +79,7 @@ class SessionsAuth extends TestCase
         
         $this->auth->expects($this->once())->method('user')->willReturn($user);
         
-        $this->callProtectedMethod($this->auth, 'persistCurrentUser');
+        $this->callPrivateMethod($this->auth, 'persistCurrentUser');
         
         $this->assertEquals(['foo' => 'bar', 'auth_uid' => 123], $_SESSION);
     }
@@ -105,7 +91,7 @@ class SessionsAuth extends TestCase
         
         $this->auth->expects($this->once())->method('user')->willReturn(null);
         
-        $this->callProtectedMethod($this->auth, 'persistCurrentUser');
+        $this->callPrivateMethod($this->auth, 'persistCurrentUser');
         
         $this->assertEquals(['foo' => 'bar'], $_SESSION);
     }

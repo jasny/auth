@@ -182,25 +182,52 @@ must return the access level of the user, either as string or as integer.
 
 The `Auth\ByGroup` traits implements authorization using access groups. An access group may supersede other groups.
 
+You must implement the `getGroupStructure()` method which should return an array. The keys are the names of the
+groups. The value should be an array with groups the group supersedes.
+
 ```php
 class Auth extends Jasny\Auth implements Jasny\Authz
 {
     use Jasny\Authz\ByGroup;
 
-    /**
-     * Authorization groups and each group is supersedes.
-     * @var array
-     */
-    protected $groups = [
-        'users' => [],
-        'managers' => [],
-        'employees' => ['user'],
-        'developers' => ['employees'],
-        'paralegals' => ['employees'],
-        'lawyers' => ['paralegals'],
-        'lead-developers' => ['developers', 'managers'],
-        'firm-partners' => ['lawyers', 'managers']
-    ];
+    protected function getGroupStructure()
+    {
+        return [
+            'users' => [],
+            'managers' => [],
+            'employees' => ['user'],
+            'developers' => ['employees'],
+            'paralegals' => ['employees'],
+            'lawyers' => ['paralegals'],
+            'lead-developers' => ['developers', 'managers'],
+            'firm-partners' => ['lawyers', 'managers']
+        ];
+    }
+}
+```
+
+If you get the values from a database, make sure to save them in a property for performance.
+
+```php
+class Auth extends Jasny\Auth implements Jasny\Authz
+{
+    use Jasny\Authz\ByGroup;
+
+    protected $groups;
+
+    protected function getGroupStructure()
+    {
+        if (!isset($this->groups)) {
+            $this->groups = [];
+            $result = $this->db->query("SELECT ...");
+
+            while (($row = $result->fetchAssoc())) {
+                $this->groups[$row['group']] = explode(';', $row['supersedes']);
+            }
+        }
+
+        return $this->groups;
+    }
 }
 ```
 

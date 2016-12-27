@@ -8,6 +8,13 @@ namespace Jasny;
 interface Authz
 {
     /**
+     * Get all auth roles
+     *  
+     * @return array
+     */
+    public function getRoles();
+    
+    /**
      * Check if the current user is logged in and has specified role.
      * 
      * <code>

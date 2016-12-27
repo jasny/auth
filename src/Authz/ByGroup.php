@@ -2,6 +2,8 @@
 
 namespace Jasny\Authz;
 
+use Jasny\Authz\User;
+
 /**
  * Authorize by access group.
  * Can be used for ACL (Access Control List).
@@ -11,56 +13,107 @@ namespace Jasny\Authz;
  *   {
  *     use Jasny\Authz\ByGroup;
  *
- *     protected $groups = [
- *       'user' => [],
- *       'developer' => ['user'],
- *       'accountant' => ['user'],
- *       'admin' => ['developer', 'accountant']
- *     ];
+ *     protected function getGroupStructure()
+ *     {
+ *       return [
+ *         'user' => [],
+ *         'accountant' => ['user'],
+ *         'moderator' => ['user'],
+ *         'developer' => ['user'],
+ *         'admin' => ['moderator', 'developer']
+ *       ];
+ *     }
  *   }
  * </code>
  */
 trait ByGroup
 {
     /**
-     * Authentication groups
-     * @internal Overwrite this in your child class
+     * Get the authenticated user
      * 
-     * @var string[]
+     * @return User
      */
-    protected $groups = [
-        'user' => []
-    ];
+    abstract public function user();
     
     /**
-     * Get all auth groups
-     *  
+     * Get the groups and the groups it supersedes.
+     * 
      * @return array
      */
-    public function getGroups()
-    {
-        return $this->groups;
-    }
+    abstract protected function getGroupStructure();
+    
     
     /**
-     * Get group and all groups it embodies.
+     * Get group and all groups it supersedes (recursively).
      *  
-     * @param string|array $groups  Single group or array of groups
+     * @param string|array $group  Single group or array of groups
      * @return array
      */
-    public function expandGroup($groups)
+    protected function expandGroup($group)
     {
-        if (!is_array($groups)) $groups = (array)$groups;
-        
-        $allGroups = static::getGroups();
-        $expanded = $groups;
+        $groups = (array)$group;
+        $structure = $this->getGroupStructure();
+
+        $expanded = [];
         
         foreach ($groups as $group) {
-            if (!empty($allGroups[$group])) {
-                $expanded = array_merge($groups, static::expandGroup($allGroups[$group]));
+            if (!isset($structure[$group])) {
+                continue;
             }
+            
+            $expanded[] = $group;
+            $expanded = array_merge($expanded, $this->expandGroup((array)$structure[$group]));
         }
         
         return array_unique($expanded);
+    }
+    
+    
+    /**
+     * Get all auth roles
+     *  
+     * @return array
+     */
+    public function getRoles()
+    {
+        $structure = $this->getGroupStructure();
+        
+        if (!is_array($structure)) {
+            throw new \UnexpectedValueException("Group structure should be an array");
+        }
+        
+        return array_keys($structure);
+    }
+    
+    /**
+     * Check if the current user is logged in and has specified role.
+     * 
+     * <code>
+     *   if (!$auth->is('manager')) {
+     *     http_response_code(403); // Forbidden
+     *     echo "You are not allowed to view this page";
+     *     exit();
+     *   }
+     * </code>
+     * 
+     * @param string $group
+     * @return boolean
+     */
+    public function is($group)
+    {
+        if (!in_array($group, $this->getRoles())) {
+            trigger_error("Unknown role '$group'", E_USER_NOTICE);
+            return false;
+        }
+        
+        $user = $this->user();
+        
+        if (!isset($user)) {
+            return false;
+        }
+        
+        $userGroups = $this->expandGroup($user->getRole());
+        
+        return in_array($group, $userGroups);
     }
 }

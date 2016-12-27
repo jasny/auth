@@ -24,7 +24,7 @@
         }
     },
     "require-dev": {
-        "jasny/php-code-quality": "^2.0",
+        "jasny/php-code-quality": "^2.1.1",
         "hashids/hashids": "~2.0.0"
     },
     "suggest": {
