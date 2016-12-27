@@ -7,6 +7,10 @@ Auth
 
 Authentication and level based authorization for PHP.
 
+* [Installation](#Installation)
+* [Setup](#Setup)
+* [Usage](#Usage)
+
 
 Installation
 ---
@@ -152,31 +156,57 @@ class Auth extends Jasny\Auth implements Jasny\Authz
 {
     use Jasny\Authz\ByLevel;
 
-    /**
-     * Authorization levels
-     * @var array
-     */
-    protected $levels = [
-        1 => 'user',
-        10 => 'moderator',
-        20 => 'admin',
-        50 => 'superadmin'
-    ];
+    protected function getAccessLevels()
+    {
+        return [
+            1 => 'user',
+            10 => 'moderator',
+            20 => 'admin',
+            50 => 'superadmin'
+        ];
+    }
+}
+```
+
+If you get the levels from a database, make sure to save them in a property for performance.
+
+```php
+class Auth extends Jasny\Auth implements Jasny\Authz
+{
+    use Jasny\Authz\ByGroup;
+
+    protected $levels;
+
+    protected function getAccessLevels()
+    {
+        if (!isset($this->groups)) {
+            $this->levels = [];
+            $result = $this->db->query("SELECT name, level FROM access_levels");
+
+            while (($row = $result->fetchAssoc())) {
+                $this->levels[$row['name']] = (int)$row['level'];
+            }
+        }
+
+        return $this->levels;
+    }
 }
 ```
 
 For authorization the user object also needs to implement `Jasny\Authz\User`, adding the `getRole()` method. This method
 must return the access level of the user, either as string or as integer.
 
-    /**
-     * Get the access level of the user
-     * 
-     * @return int
-     */
-    public function getRole()
-    {
-        return $this->access_level;
-    }
+```php
+/**
+ * Get the access level of the user
+ * 
+ * @return int
+ */
+public function getRole()
+{
+    return $this->access_level;
+}
+```
 
 #### By group
 
@@ -206,7 +236,7 @@ class Auth extends Jasny\Auth implements Jasny\Authz
 }
 ```
 
-If you get the values from a database, make sure to save them in a property for performance.
+If you get the structure from a database, make sure to save them in a property for performance.
 
 ```php
 class Auth extends Jasny\Auth implements Jasny\Authz
@@ -234,16 +264,17 @@ class Auth extends Jasny\Auth implements Jasny\Authz
 For authorization the user object also needs to implement `Jasny\Authz\User`, adding the `getRole()` method. This method
 must return the role of the user or array of roles.
 
-    /**
-     * Get the access groups of the user
-     * 
-     * @return string[]
-     */
-    public function getRoles()
-    {
-        return $this->roles;
-    }
-
+```php
+/**
+ * Get the access groups of the user
+ * 
+ * @return string[]
+ */
+public function getRoles()
+{
+    return $this->roles;
+}
+```
 
 ### Confirmation
 

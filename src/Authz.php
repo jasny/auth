@@ -8,7 +8,7 @@ namespace Jasny;
 interface Authz
 {
     /**
-     * Get all auth roles
+     * Get all authz roles
      *  
      * @return array
      */
