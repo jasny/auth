@@ -32,7 +32,9 @@ class SessionsAuth extends TestCase
         ini_set('session.use_only_cookies', 0);
         
         $this->sessionModule = session_module_name();
-        session_set_save_handler($this->createMock(\SessionHandlerInterface::class));
+
+        $void = function () { return true; };
+        session_set_save_handler($void, $void, $void, $void, $void, $void);
         
         session_start();
     }
