@@ -88,8 +88,8 @@ abstract class Auth
     /**
      * Set the current user
      * 
-     * @param User $user
-     * @return boolean
+     * @param User|null $user
+     * @return User|null
      */
     public function setUser(User $user)
     {
