@@ -41,6 +41,8 @@ abstract class Auth
     
     /**
      * Persist the current user id across requests
+     * 
+     * @return void
      */
     abstract protected function persistCurrentUser();
     
@@ -144,7 +146,7 @@ abstract class Auth
             return null;
         }
         
-        return static::setUser($user);
+        return $this->setUser($user);
     }
     
     /**

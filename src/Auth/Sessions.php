@@ -19,6 +19,7 @@ trait Sessions
     
     /**
      * Get the session data
+     * @global array $_SESSION
      * 
      * @return array
      */
@@ -29,6 +30,7 @@ trait Sessions
     
     /**
      * Update the session
+     * @global array $_SESSION
      * 
      * @param string $key
      * @param mixed  $value

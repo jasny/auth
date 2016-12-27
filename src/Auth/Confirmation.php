@@ -45,7 +45,7 @@ trait Confirmation
     /**
      * Create a heashids interface
      * 
-     * @param string $secret
+     * @param string $subject
      * @return Hashids
      */
     protected function createHashids($subject)

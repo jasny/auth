@@ -38,6 +38,8 @@ interface User
     
     /**
      * Event called on logout.
+     * 
+     * @return void
      */
     public function onLogout();
 }
