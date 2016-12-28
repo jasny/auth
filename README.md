@@ -180,7 +180,7 @@ class Auth extends Jasny\Auth implements Jasny\Authz
 
     protected function getAccessLevels()
     {
-        if (!isset($this->groups)) {
+        if (!isset($this->levels)) {
             $this->levels = [];
             $result = $this->db->query("SELECT name, level FROM access_levels");
 
