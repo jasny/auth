@@ -24,6 +24,9 @@
             "Jasny\\": "src/"
         }
     },
+    "autoload-dev": {
+        "classmap": ["tests/support"]
+    },
     "require-dev": {
         "jasny/php-code-quality": "^2.1.2",
         "hashids/hashids": "~2.0.0"

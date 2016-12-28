@@ -26,10 +26,10 @@ class Middleware
     /**
      * Class constructor
      *
-     * @param Authz    $auth
+     * @param Auth     $auth
      * @param callable $getRequiredRole
      */
-    public function __construct(Authz $auth, $getRequiredRole)
+    public function __construct(Auth $auth, $getRequiredRole)
     {
         $this->auth = $auth;
         
@@ -43,15 +43,23 @@ class Middleware
     /**
      * Check if the current user has one of the roles
      * 
-     * @param array $roles
+     * @param array|string|boolean $roles
      * @return
      */
-    protected function hasRole(array $roles)
+    protected function hasRole($requiredRole)
     {
+        if (is_bool($requiredRole)) {
+            return $this->auth->user() !== null;
+        }
+        
         $ret = false;
         
-        foreach ($roles as $role) {
-            $ret = $ret || $this->auth->is($role);
+        if ($this->auth instanceof Authz) {
+            $roles = (array)$requiredRole;
+            
+            foreach ($roles as $role) {
+                $ret = $ret || $this->auth->is($role);
+            }
         }
         
         return $ret;
@@ -66,7 +74,7 @@ class Middleware
      */
     protected function forbidden(ServerRequestInterface $request, ResponseInterface $response)
     {
-        $unauthorized = $this->auth instanceof Auth && $this->auth->user() === null;
+        $unauthorized = $this->auth->user() === null;
         
         $forbiddenResponse = $response->withStatus($unauthorized ? 401 : 403);
         $forbiddenResponse->getBody()->write('Access denied');
@@ -90,7 +98,7 @@ class Middleware
 
         $requiredRole = call_user_func($this->getRequiredRole, $request);
         
-        if (!empty($requiredRole) && !$this->hasRole((array)$requiredRole)) {
+        if (!empty($requiredRole) && !$this->hasRole($requiredRole)) {
             return $this->forbidden($request, $response);
         }
 

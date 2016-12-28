@@ -4,6 +4,7 @@ namespace Jasny\Auth;
 
 use Jasny\Auth;
 use Jasny\Authz;
+use Jasny\AuthAuthz;
 use Jasny\Auth\Middleware;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -32,7 +33,8 @@ class MiddlewareTest extends TestCase
     
     public function setUp()
     {
-        $this->auth = $this->createMock(Authz::class);
+        $this->auth = $this->createMock(AuthAuthz::class);
+        
         $this->middleware = new Middleware($this->auth, function(ServerRequestInterface $request) {
             return $request->getAttribute('auth');
         });
@@ -45,11 +47,34 @@ class MiddlewareTest extends TestCase
     {
         new Middleware($this->auth, 'foo bar zoo');
     }
+
+    
+    public function testInvokeWithoutRequiredUser()
+    {
+        $this->auth->expects($this->never())->method('user');
+        
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->expects($this->once())->method('getAttribute')->with('auth')->willReturn(false);
+        
+        $finalResponse = $this->createMock(ResponseInterface::class);
+        
+        $response = $this->createMock(ResponseInterface::class);
+        $response->expects($this->never())->method('withStatus');
+        
+        $next = $this->createCallbackMock(
+            $this->once(),
+            function(InvocationMocker $invoke) use ($request, $response, $finalResponse) {
+                $invoke->with($this->identicalTo($request), $this->identicalTo($response))->willReturn($finalResponse);
+            }
+        );
+        
+        $result = call_user_func($this->middleware, $request, $response, $next);
+        
+        $this->assertSame($finalResponse, $result);
+    }
     
     public function testInvokeWithoutRequiredRole()
     {
-        $this->auth->expects($this->never())->method('is');
-        
         $request = $this->createMock(ServerRequestInterface::class);
         $request->expects($this->once())->method('getAttribute')->with('auth')->willReturn(null);
         
@@ -64,6 +89,31 @@ class MiddlewareTest extends TestCase
                 $invoke->with($this->identicalTo($request), $this->identicalTo($response))->willReturn($finalResponse);
             }
         );
+        
+        $result = call_user_func($this->middleware, $request, $response, $next);
+        
+        $this->assertSame($finalResponse, $result);
+    }
+    
+    public function testInvokeWithRequiredUser()
+    {
+        $user = $this->createMock(Authz\User::class);
+        $this->auth->expects($this->once())->method('user')->willReturn($user);
+        
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->expects($this->once())->method('getAttribute')->with('auth')->willReturn(true);
+        
+        $finalResponse = $this->createMock(ResponseInterface::class);
+        
+        $response = $this->createMock(ResponseInterface::class);
+        $response->expects($this->never())->method('withStatus');
+        
+        $next = $this->createCallbackMock(
+            $this->once(),
+            function(InvocationMocker $invoke) use ($request, $response, $finalResponse) {
+                $invoke->with($this->identicalTo($request), $this->identicalTo($response))->willReturn($finalResponse);
+            }
+        );        
         
         $result = call_user_func($this->middleware, $request, $response, $next);
         
@@ -94,37 +144,8 @@ class MiddlewareTest extends TestCase
         $this->assertSame($finalResponse, $result);
     }
     
-    public function testInvokeForbidden()
-    {
-        $this->auth->expects($this->once())->method('is')->with('user')->willReturn(false);
-        
-        $request = $this->createMock(ServerRequestInterface::class);
-        $request->expects($this->once())->method('getAttribute')->with('auth')->willReturn('user');
-        
-        $stream = $this->createMock(StreamInterface::class);
-        $stream->expects($this->once())->method('write')->with('Access denied');
-        
-        $forbiddenResponse = $this->createMock(ResponseInterface::class);
-        $forbiddenResponse->expects($this->once())->method('getBody')->willReturn($stream);
-        
-        $response = $this->createMock(ResponseInterface::class);
-        $response->expects($this->once())->method('withStatus')->with(403)->willReturn($forbiddenResponse);
-        
-        $next = $this->createCallbackMock($this->never());
-        
-        $result = call_user_func($this->middleware, $request, $response, $next);
-        
-        $this->assertSame($forbiddenResponse, $result);
-    }
-    
     public function testInvokeUnauthorized()
     {
-        $this->auth = $this->getMockBuilder(Auth::class)
-            ->disableProxyingToOriginalMethods()
-            ->setMethods(['user', 'is', 'persistCurrentUser', 'getCurrentUserId', 'fetchUserById',
-                'fetchUserByUsername'])
-            ->getMock();
-        
         $this->auth->expects($this->once())->method('user')->willReturn(null);
         $this->auth->expects($this->once())->method('is')->with('user')->willReturn(false);
         
@@ -141,6 +162,32 @@ class MiddlewareTest extends TestCase
         
         $response = $this->createMock(ResponseInterface::class);
         $response->expects($this->once())->method('withStatus')->with(401)->willReturn($forbiddenResponse);
+        
+        $next = $this->createCallbackMock($this->never());
+        
+        $result = call_user_func($this->middleware, $request, $response, $next);
+        
+        $this->assertSame($forbiddenResponse, $result);
+    }
+    
+    public function testInvokeForbidden()
+    {
+        $user = $this->createMock(Authz\User::class);
+        
+        $this->auth->expects($this->once())->method('user')->willReturn($user);
+        $this->auth->expects($this->once())->method('is')->with('user')->willReturn(false);
+        
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->expects($this->once())->method('getAttribute')->with('auth')->willReturn('user');
+        
+        $stream = $this->createMock(StreamInterface::class);
+        $stream->expects($this->once())->method('write')->with('Access denied');
+        
+        $forbiddenResponse = $this->createMock(ResponseInterface::class);
+        $forbiddenResponse->expects($this->once())->method('getBody')->willReturn($stream);
+        
+        $response = $this->createMock(ResponseInterface::class);
+        $response->expects($this->once())->method('withStatus')->with(403)->willReturn($forbiddenResponse);
         
         $next = $this->createCallbackMock($this->never());
         

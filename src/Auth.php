@@ -3,6 +3,7 @@
 namespace Jasny;
 
 use Jasny\Auth\User;
+use Jasny\Auth\Middleware;
 
 /**
  * Authentication and access control
@@ -164,5 +165,18 @@ abstract class Auth
         
         $this->user = false;
         $this->persistCurrentUser();
+    }
+    
+    
+    /**
+     * Create auth middleware interface for access control.
+     *
+     * @param Authz    $auth
+     * @param callable $getRequiredRole
+     * @return Middleware
+     */
+    public function asMiddleware($getRequiredRole)
+    {
+        return new Middleware($this, $getRequiredRole);
     }
 }

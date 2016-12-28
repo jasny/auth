@@ -5,12 +5,15 @@ namespace Jasny;
 use Jasny\Auth;
 use PHPUnit_Framework_TestCase as TestCase;
 use PHPUnit_Framework_MockObject_MockObject as MockObject;
+use Jasny\TestHelper;
 
 /**
  * @covers Jasny\Auth
  */
 class AuthTest extends TestCase
 {
+    use TestHelper;
+    
     /**
      * @var Auth|MockObject 
      */
@@ -176,5 +179,16 @@ class AuthTest extends TestCase
         
         // Logout again shouldn't really do anything
         $this->auth->logout();
+    }
+    
+    
+    public function testAsMiddleware()
+    {
+        $callback = $this->createCallbackMock($this->never());
+        $middleware = $this->auth->asMiddleware($callback);
+        
+        $this->assertInstanceOf(Auth\Middleware::class, $middleware);
+        $this->assertAttributeEquals($this->auth, 'auth', $middleware);
+        $this->assertAttributeEquals($callback, 'getRequiredRole', $middleware);
     }
 }
