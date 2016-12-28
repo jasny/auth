@@ -1,4 +1,4 @@
-Auth
+Jasny Auth
 ===
 
 [![Build Status](https://travis-ci.org/jasny/auth.svg?branch=master)](https://travis-ci.org/jasny/auth)
@@ -8,7 +8,7 @@ Auth
 [![Packagist Stable Version](https://img.shields.io/packagist/v/jasny/auth.svg)](https://packagist.org/packages/jasny/auth)
 [![Packagist License](https://img.shields.io/packagist/l/jasny/auth.svg)](https://packagist.org/packages/jasny/auth)
 
-Authentication and level based authorization for PHP.
+Authentication, authorization and access control for PHP.
 
 * [Installation](#installation)
 * [Setup](#setup)
