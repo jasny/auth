@@ -14,6 +14,7 @@ Authentication, authorization and access control for PHP.
 * [Setup](#setup)
 * [Usage](#usage)
 
+---
 
 Installation
 ---
