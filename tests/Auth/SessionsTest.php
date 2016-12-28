@@ -34,7 +34,8 @@ class SessionsAuth extends TestCase
         $this->sessionModule = session_module_name();
 
         $void = function () { return true; };
-        session_set_save_handler($void, $void, $void, $void, $void, $void);
+        $read = function () { return "a:0:{}"; };
+        session_set_save_handler($void, $void, $read, $void, $void, $void);
         
         session_start();
     }
@@ -44,6 +45,7 @@ class SessionsAuth extends TestCase
         session_abort();
         session_module_name($this->sessionModule);
     }
+    
     
     public function setUp()
     {

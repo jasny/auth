@@ -4,12 +4,13 @@ Auth
 [![Build Status](https://travis-ci.org/jasny/auth.svg?branch=master)](https://travis-ci.org/jasny/auth)
 [![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/jasny/auth/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/jasny/auth/?branch=master)
 [![Code Coverage](https://scrutinizer-ci.com/g/jasny/auth/badges/coverage.png?b=master)](https://scrutinizer-ci.com/g/jasny/auth/?branch=master)
+[![SensioLabsInsight](https://insight.sensiolabs.com/projects/2413e307-8b3b-4a7c-8202-730ed969bbd4/mini.png)](https://insight.sensiolabs.com/projects/2413e307-8b3b-4a7c-8202-730ed969bbd4)
 
 Authentication and level based authorization for PHP.
 
-* [Installation](#Installation)
-* [Setup](#Setup)
-* [Usage](#Usage)
+* [Installation](#installation)
+* [Setup](#setup)
+* [Usage](#usage)
 
 
 Installation
