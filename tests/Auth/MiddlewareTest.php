@@ -153,6 +153,7 @@ class MiddlewareTest extends TestCase
         
         $request = $this->createMock(ServerRequestInterface::class);
         $request->expects($this->once())->method('getAttribute')->with('auth')->willReturn('user');
+        $request->expects($this->once())->method('getProtocolVersion')->willReturn('1.1');
         
         $stream = $this->createMock(StreamInterface::class);
         $stream->expects($this->once())->method('write')->with('Access denied');
@@ -161,6 +162,7 @@ class MiddlewareTest extends TestCase
         $forbiddenResponse->expects($this->once())->method('getBody')->willReturn($stream);
         
         $response = $this->createMock(ResponseInterface::class);
+        $response->expects($this->once())->method('withProtocolVersion')->with('1.1')->willReturnSelf();
         $response->expects($this->once())->method('withStatus')->with(401)->willReturn($forbiddenResponse);
         
         $next = $this->createCallbackMock($this->never());
@@ -179,6 +181,7 @@ class MiddlewareTest extends TestCase
         
         $request = $this->createMock(ServerRequestInterface::class);
         $request->expects($this->once())->method('getAttribute')->with('auth')->willReturn('user');
+        $request->expects($this->once())->method('getProtocolVersion')->willReturn('1.1');
         
         $stream = $this->createMock(StreamInterface::class);
         $stream->expects($this->once())->method('write')->with('Access denied');
@@ -187,6 +190,7 @@ class MiddlewareTest extends TestCase
         $forbiddenResponse->expects($this->once())->method('getBody')->willReturn($stream);
         
         $response = $this->createMock(ResponseInterface::class);
+        $response->expects($this->once())->method('withProtocolVersion')->with('1.1')->willReturnSelf();
         $response->expects($this->once())->method('withStatus')->with(403)->willReturn($forbiddenResponse);
         
         $next = $this->createCallbackMock($this->never());

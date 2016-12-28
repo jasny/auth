@@ -76,7 +76,9 @@ class Middleware
     {
         $unauthorized = $this->auth->user() === null;
         
-        $forbiddenResponse = $response->withStatus($unauthorized ? 401 : 403);
+        $forbiddenResponse = $response
+            ->withProtocolVersion($request->getProtocolVersion())
+            ->withStatus($unauthorized ? 401 : 403);
         $forbiddenResponse->getBody()->write('Access denied');
         
         return $forbiddenResponse;
