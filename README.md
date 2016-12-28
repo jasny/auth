@@ -354,6 +354,20 @@ Get current user
     User user()
 
 
+### Access control (middleware)
+
+You can apply access control manually using the `is()` method. Alteratively, if you're using a PSR-7 compatible router
+with middleware support (like [Jasny Router](https://github.com/jasny/router)]).
+
+```php
+$auth = new Auth(); // Implements the Jasny\Authz interface
+
+$roure->add($auth->asMiddleware(function(ServerRequest $request) {
+    $route = $request->getAttribute('route');
+    return isset($route->auth) ? $route->auth : null;
+}));
+```
+
 ### Authorization
 
 Check if a user has a specific role or superseding role
