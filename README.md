@@ -321,6 +321,7 @@ class Auth extends Jasny\Auth
 
   ...
 }
+```
 
 
 Usage
