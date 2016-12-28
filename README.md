@@ -347,11 +347,11 @@ _If `$user->onLogin()` returns `false`, the user isn't set and the function retu
 
 Logout
 
-    logout()
+    void logout()
 
 Get current user
 
-    User user()
+    User|null user()
 
 
 ### Authorization
@@ -460,8 +460,8 @@ $url = "http://$host/reset.php?token=$confirmationToken";
 
 mail(
   $user->getEmail(),
-  "Welcome to our site",
-  "Please confirm your account by visiting $url"
+  "Password reset request",
+  "You may reset your password by visiting $url"
 );
 ```
 
