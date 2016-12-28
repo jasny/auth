@@ -354,20 +354,6 @@ Get current user
     User user()
 
 
-### Access control (middleware)
-
-You can apply access control manually using the `is()` method. Alteratively, if you're using a PSR-7 compatible router
-with middleware support (like [Jasny Router](https://github.com/jasny/router)]).
-
-```php
-$auth = new Auth(); // Implements the Jasny\Authz interface
-
-$roure->add($auth->asMiddleware(function(ServerRequest $request) {
-    $route = $request->getAttribute('route');
-    return isset($route->auth) ? $route->auth : null;
-}));
-```
-
 ### Authorization
 
 Check if a user has a specific role or superseding role
@@ -382,8 +368,41 @@ if (!$auth->is('admin')) {
 }
 ```
 
-### Confirmation
+### Access control (middleware)
 
+Check if a user has a specific role or superseding role
+
+    Jasny\Authz\Middleware asMiddleware(callback $getRequiredRole)
+
+You can apply access control manually using the `is()` method. Alteratively, if you're using a PSR-7 compatible router
+with middleware support (like [Jasny Router](https://github.com/jasny/router)]).
+
+The `$getRequiredRole` callback should return a boolean, string or array of string.
+
+Returning true means a the request will only be handled if a user is logged in.
+
+```php
+$auth = new Auth(); // Implements the Jasny\Authz interface
+
+$router->add($auth->asMiddleware(function(ServerRequest $request) {
+    return strpos($request->getUri()->getPath(), '/account/') === 0; // `/account/` is only available if logged in
+}));
+```
+
+If the `Auth` class implements authorization (`Authz`) and the callback returns a string, the middleware will check if
+the user is authorized for that role. If an array of string is returned, the user should be authorized for at least one
+of the roles.
+
+```php
+$auth = new Auth(); // Implements the Jasny\Authz interface
+
+$router->add($auth->asMiddleware(function(ServerRequest $request) {
+    $route = $request->getAttribute('route');
+    return isset($route->auth) ? $route->auth : null;
+}));
+```
+
+### Confirmation
 
 #### Signup confirmation
 
