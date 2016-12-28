@@ -171,7 +171,6 @@ abstract class Auth
     /**
      * Create auth middleware interface for access control.
      *
-     * @param Authz    $auth
      * @param callable $getRequiredRole
      * @return Middleware
      */

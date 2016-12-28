@@ -13,7 +13,7 @@ use Psr\Http\Message\ResponseInterface;
 class Middleware
 {
     /**
-     * @var Auth|Authz
+     * @var Auth
      **/
     protected $auth;
 
@@ -43,7 +43,7 @@ class Middleware
     /**
      * Check if the current user has one of the roles
      * 
-     * @param array|string|boolean $roles
+     * @param array|string|boolean $requiredRole
      * @return
      */
     protected function hasRole($requiredRole)
