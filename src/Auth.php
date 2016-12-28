@@ -88,7 +88,7 @@ abstract class Auth
     /**
      * Set the current user
      * 
-     * @param User|null $user
+     * @param User $user
      * @return User|null
      */
     public function setUser(User $user)
@@ -142,7 +142,7 @@ abstract class Auth
     {
         $user = $this->fetchUserByUsername($username);
 
-        if (!$this->verifyCredentials($user, $password)) {
+        if (!isset($user) || !$this->verifyCredentials($user, $password)) {
             return null;
         }
         
