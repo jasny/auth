@@ -27,7 +27,7 @@ Install using composer
 Setup
 ---
 
-`Jasny\Auth` is an abstract class. You need to extend it and implement the abstract methods `fetchUserById` and
+`Auth` is an abstract class. You need to extend it and implement the abstract methods `fetchUserById` and
 `fetchUserByUsername`.
 
 You also need to specify how the current user is persisted across requests. If you want to use normal PHP sessions, you
@@ -36,15 +36,15 @@ can simply use the `Auth\Sessions` trait.
 ```php
 class Auth extends Jasny\Auth
 {
-    use Auth\Sessions;
+    use Jasny\Auth\Sessions;
 
     /**
      * Fetch a user by ID
      * 
      * @param int $id
-     * @return User
+     * @return Jasny\Auth\User
      */
-    public static function fetchUserById($id)
+    public function fetchUserById($id)
     {
         // Database action that fetches a User object
     }
@@ -53,9 +53,9 @@ class Auth extends Jasny\Auth
      * Fetch a user by username
      * 
      * @param string $username
-     * @return User
+     * @return Jasny\Auth\User
      */
-    public static function fetchUserByUsername($username)
+    public function fetchUserByUsername($username)
     {
         // Database action that fetches a User object
     }
@@ -314,7 +314,7 @@ use more than 12 characters. This does result in a larger string for the token.
 
 ```php
 class Auth extends Jasny\Auth
-{   
+{
   ...
 
   protected function getConfirmationChecksum($id, $len = 32)
@@ -441,7 +441,7 @@ if (!$user) {
 
 // Process the confirmation
 // ...
-```    
+```
 
 #### Forgot password
 
@@ -480,4 +480,5 @@ if (!$user) {
 
 // Show form to set a password
 // ...
-```    
+```
+
