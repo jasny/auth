@@ -163,10 +163,10 @@ class Auth extends Jasny\Auth implements Jasny\Authz
     protected function getAccessLevels()
     {
         return [
-            1 => 'user',
-            10 => 'moderator',
-            20 => 'admin',
-            50 => 'superadmin'
+            'user' => 1,
+            'moderator' => 10,
+            'admin' => 100,
+            'superadmin' => 500
         ];
     }
 }
