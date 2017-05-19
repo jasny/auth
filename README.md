@@ -21,7 +21,7 @@ Installation
 
 Install using composer
 
-    composer require jasny\auth
+    composer require jasny/auth
 
 
 Setup
