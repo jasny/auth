@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Jasny\Auth;
 
+use Jasny\Auth\ContextInterface as Context;
+
 /**
  * Entity used for as user for auth.
  */
@@ -17,7 +19,7 @@ interface UserInterface
     public function getId();
 
     /**
-     * Get user's hashed password.
+     * Verify that the password matches.
      */
     public function verifyPassword(string $password): bool;
 
@@ -30,8 +32,8 @@ interface UserInterface
     /**
      * Get the role(s) of the user.
      *
-     * @param mixed $context
+     * @param Context|null $context
      * @return int|string|int[]|string[]
      */
-    public function getRole($context = null);
+    public function getRole(?Context $context = null);
 }

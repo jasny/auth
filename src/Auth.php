@@ -255,7 +255,7 @@ class Auth implements Authz
         }
 
         $uid = $user->getId();
-        $cid = $context !== null ? $context->getId() : null;
+        $cid = $context !== null ? $context->getAuthContextId() : null;
         $checksum = $user->getAuthChecksum();
 
         $this->session->persist($uid, $cid, $checksum);

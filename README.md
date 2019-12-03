@@ -4,7 +4,6 @@ Jasny Auth
 [![Build Status](https://travis-ci.org/jasny/auth.svg?branch=master)](https://travis-ci.org/jasny/auth)
 [![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/jasny/auth/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/jasny/auth/?branch=master)
 [![Code Coverage](https://scrutinizer-ci.com/g/jasny/auth/badges/coverage.png?b=master)](https://scrutinizer-ci.com/g/jasny/auth/?branch=master)
-[![SensioLabsInsight](https://insight.sensiolabs.com/projects/2413e307-8b3b-4a7c-8202-730ed969bbd4/mini.png)](https://insight.sensiolabs.com/projects/2413e307-8b3b-4a7c-8202-730ed969bbd4)
 [![Packagist Stable Version](https://img.shields.io/packagist/v/jasny/auth.svg)](https://packagist.org/packages/jasny/auth)
 [![Packagist License](https://img.shields.io/packagist/l/jasny/auth.svg)](https://packagist.org/packages/jasny/auth)
 
@@ -23,71 +22,90 @@ Install using composer
 
     composer require jasny\auth
 
+Usage
+---
+
+```php
+use Jasny\Auth\Auth;
+use Jasny\Auth\Authz\Levels;
+
+$levels = new Levels(['user' => 1, 'moderator' => 10, 'admin' => 100]);
+$auth = new Auth($levels, new AuthStorage());
+
+session_start();
+$auth->initialize();
+
+// Later...
+if (!$auth->is('admin')) {
+    http_response_code(403);
+    echo "Access denied";
+    exit();
+}
+```
+
 
 Setup
 ---
 
-`Auth` is an abstract class. You need to extend it and implement the abstract methods `fetchUserById` and
-`fetchUserByUsername`.
+`Auth` is a composition class. It takes an [`Authz`](#authorization), [`Storage`](#storage), and optionally a
+[`Confirmation`](#confirmation) service.
 
-You also need to specify how the current user is persisted across requests. If you want to use normal PHP sessions, you
-can simply use the `Auth\Sessions` trait.
+The `Auth` service isn't usable until it's initialized. This should be done after the session is started.
 
 ```php
-class Auth extends Jasny\Auth
-{
-    use Jasny\Auth\Sessions;
+session_start();
+$auth->initialize();
+```
 
+### Storage
+
+The `Storage` service is not provided, you'll need to create a service that can fetch a user from the database.
+
+```php
+use Jasny\Auth;
+
+class AuthStorage implements Auth\StorageInterface
+{
     /**
      * Fetch a user by ID
-     * 
-     * @param int $id
-     * @return Jasny\Auth\User
      */
-    public function fetchUserById($id)
+    public function fetchUserById($id): ?Auth\UserInterface
     {
         // Database action that fetches a User object
     }
 
     /**
      * Fetch a user by username
-     * 
-     * @param string $username
-     * @return Jasny\Auth\User
      */
-    public function fetchUserByUsername($username)
+    public function fetchUserByUsername(string $username): ?Auth\UserInterface
     {
         // Database action that fetches a User object
+    }
+    
+    /**
+     * Fetch the context by ID.
+     */
+    public function fetchContext($id) : ?Auth\ContextInterface
+    {
+        // Database action that fetches a context (or return null)
     }
 }
 ```
 
-The fetch methods need to return a object that implements the `Jasny\Auth\User` interface.
+### User
+
+The fetch methods need to return a object that implements the `Jasny\Auth\UserInterface` interface.
 
 ```php
-class User implements Jasny\Auth\User
+use Jasny\Auth;
+
+class User implements Auth\UserInterface
 {
-    /**
-     * @var int
-     */
-    public $id;
+    public int $id;
+    public string $username;
+    public int $accessLevel = 0;
 
-    /**
-     * @var string
-     */
-    public $username;
-
-    /**
-     * Hashed password
-     * @var string
-     */
-    public $password;
-
-    /**
-     * @var boolean
-     */
-    public $active;
-
+    protected string $hashedPassword;
 
     /**
      * Get the user ID
@@ -100,187 +118,285 @@ class User implements Jasny\Auth\User
     }
 
     /**
-     * Get the usermame
-     * 
-     * @return string
+     * Set the user's password.
+     * {@interal This method isn't required by the interface}}. 
      */
-    public function getUsername()
+    public function changePassword(string $password): void
     {
-        return $this->username;
+        $this->hashedPassword = password_hash($password, PASSWORD_BCRYPT);
     }
 
     /**
-     * Get the hashed password
-     * 
-     * @return string
+     * Verify that the password matches.
      */
-    public function getHashedPassword()
+    public function verifyPassword(string $password): bool
     {
-        return $this->password;
-    }
-
-
-    /**
-     * Event called on login.
-     * 
-     * @return boolean  false cancels the login
-     */
-    public function onLogin()
-    {
-        if (!$this->active) {
-            return false;
-        }
-
-        // You might want to log the login
+        return password_verify($password, $this->hashedPassword);
     }
 
     /**
-     * Event called on logout.
+     * Get checksum/hash for critical user data like username, e-mail, and password.
+     * If the checksum changes, the user is logged out in all sessions.
      */
-    public function onLogout()
+    public function getAuthChecksum(): string
     {
-        // You might want to log the logout
+        return hash('sha256', $this->username . $this->hashedPassword);
+    }
+    
+    /**
+     * Get the role of the user.
+     * Uses authorization levels. 
+     */
+    public function getRole(Auth\ContextInterface $context = null): int
+    {
+        return $this->accessLevel;
     }
 }
 ```
 
-### Authorization
+### Authorization services
 
-By default the `Auth` class only does authentication. Authorization can be added by implementing the `Authz` interface.
+The `Authz` services are used to check permissions for a user. These services are immutable, applying authorization to
+the given user and context.
 
-Two traits are predefined to do Authorization: `Authz\ByLevel` and `Authz\ByGroup`.
+#### Levels
 
-#### By level
-
-The `Authz\ByLevel` traits implements authorization based on access levels. Each user get permissions for it's level and
-all levels below.
+The `Authz\Levels` service implements authorization based on access levels. Each user get permissions for it's level and
+all levels below. Levels must be integers.
 
 ```php
-class Auth extends Jasny\Auth implements Jasny\Authz
-{
-    use Jasny\Authz\ByLevel;
+use Jasny\Auth\Auth;
+use Jasny\Auth\Authz\Levels;
 
-    protected function getAccessLevels()
+$levels = new Levels([
+    1 => 'user',
+    10 => 'moderator',
+    20 => 'admin',
+    50 => 'superadmin'
+]);
+
+$auth = new Auth($levels, new AuthStorage());
+```
+
+#### Groups
+
+The `Authz\Groups` service implements authorization using access groups. An access group may supersede other groups.
+
+```php
+use Jasny\Auth\Auth;
+use Jasny\Auth\Authz\Groups;
+
+$groups = new Groups([
+    'users' => [],
+    'managers' => [],
+    'employees' => ['user'],
+    'developers' => ['employees'],
+    'paralegals' => ['employees'],
+    'lawyers' => ['paralegals'],
+    'lead-developers' => ['developers', 'managers'],
+    'firm-partners' => ['lawyers', 'managers']
+]);
+
+$auth = new Auth($levels, new AuthStorage());
+```
+
+When using authorization groups the user may return multiple roles, which will be combined.
+
+```php
+use Jasny\Auth;
+
+class User implements Auth\UserInterface
+{
+    public int $id;
+    public string $username;
+    public array $roles = [];
+
+    protected string $hashedPassword;
+    
+    // ...
+
+    public function getRole(?Auth\ContextInterface $context = null): array
     {
-        return [
-            1 => 'user',
-            10 => 'moderator',
-            20 => 'admin',
-            50 => 'superadmin'
-        ];
+        return $this->roles;
     }
 }
 ```
 
-If you get the levels from a database, make sure to save them in a property for performance.
+_It's always possible to switch from levels to groups, but usually not visa-versa._
+
+### Context
+
+By default authorization is global, aka application-wide. However it's possible to set an authz context like an
+organization, team, or board. Rather than checking if a user is an admin in the application, you'd verify is the user
+is an admin of the organization.
+
+Any object that implements 'Jasny\Auth\ContextInterface' can be used as context. The `getAuthContextId()` method should
+return a value that can be used by the [`Storage`](#storage) implementation to fetch the context.
 
 ```php
-class Auth extends Jasny\Auth implements Jasny\Authz
+use Jasny\Auth;
+
+class Organization implements Auth\ContextInterface
 {
-    use Jasny\Authz\ByGroup;
+    public int $id;
 
-    protected $levels;
-
-    protected function getAccessLevels()
+    public function getAuthContextId()
     {
-        if (!isset($this->levels)) {
-            $this->levels = [];
-            $result = $this->db->query("SELECT name, level FROM access_levels");
-
-            while (($row = $result->fetchAssoc())) {
-                $this->levels[$row['name']] = (int)$row['level'];
-            }
-        }
-
-        return $this->levels;
+        return ['type' => 'organization', 'id' => $this->id];
     }
 }
 ```
 
-For authorization the user object also needs to implement `Jasny\Authz\User`, adding the `getRole()` method. This method
-must return the access level of the user, either as string or as integer.
+In some applications the context will be determined on a slug in the URL (like `ltonetwork` in
+`https://github.com/ltonetwork/`). In that case `Context::getAuthContextId()` and `Storage::fetchContext()` should
+return `null`.
+
+You can either set the context for this request, or use an `Authz` object for that context with `inContextOf()`.
 
 ```php
-/**
- * Get the access level of the user
- * 
- * @return int
- */
-public function getRole()
-{
-    return $this->access_level;
+if (!$auth->inContextOf($organization)->is('admin')) {
+    return forbidden();
+}
+
+// OR
+
+$auth->setContext($organization);
+
+if (!$auth->is('admin')) {
+    return forbidden();
 }
 ```
 
-#### By group
+### Events
 
-The `Auth\ByGroup` traits implements authorization using access groups. An access group may supersede other groups.
+__TODO__ 
 
-You must implement the `getGroupStructure()` method which should return an array. The keys are the names of the
-groups. The value should be an array with groups the group supersedes.
+
+Authentication
+---
+
+### login
+
+    Auth::login(string $username, string $password): void
+
+Login with username and password.
+
+Triggers a [login event](#events), which may be used to cancel the login.
+
+The method will throw a `LoginException` if login failed. The code will either be `LoginException::INVALID_CREDENTIALS`
+or `LoginException::CANCELLED` (if cancelled via the login event).
+
+### loginAs
+
+    Auth::loginAs(UserInterface $user): void
+
+Set user without verification. 
+
+Triggers a [login event](#events), which may be used to cancel the login. The method will throw a `LoginException` if
+the login is cancelled.
+
+### setContext
+
+    Auth::setContext(ContextInterface $context): void
+
+Set the current authorization context for the user.
+
+### logout
+
+    Auth::logout(): void
+
+Clear the current user and context.
+
+Triggers a [logout event](#events).
+
+### updateSession
+
+    Auth::updateSession(): void
+    
+Store the current auth information in the session.
+
+This typically doesn't have to be called explicitly. However, if the current user modifies his/her password (causing an
+auth checksum mismatch), this needs to be called to prevent the current user from being logged out.
 
 ```php
-class Auth extends Jasny\Auth implements Jasny\Authz
-{
-    use Jasny\Authz\ByGroup;
+$auth->user()->changePassword($_GET['new_password']);
+$auth->updateSession();
+```
 
-    protected function getGroupStructure()
-    {
-        return [
-            'users' => [],
-            'managers' => [],
-            'employees' => ['user'],
-            'developers' => ['employees'],
-            'paralegals' => ['employees'],
-            'lawyers' => ['paralegals'],
-            'lead-developers' => ['developers', 'managers'],
-            'firm-partners' => ['lawyers', 'managers']
-        ];
-    }
+### user
+
+    Auth::user(): UserInterface|null
+    
+Get the current user. Returns `null` if no user is logged in.
+
+### context
+
+    Auth::context(): ContextInterface|null
+    
+Get the current context. Returns `null` if the global context is used.
+
+### is
+
+    Auth::is(string $role): bool
+
+Check if a user has a specific role or superseding role
+
+```php
+if (!$auth->is('admin')) {
+    http_response_code(403);
+    echo "You're not allowed to see this page";
+    exit();
 }
 ```
 
-If you get the structure from a database, make sure to save them in a property for performance.
+### getAvailableRoles
+
+    Auth::getAvailableRoles(): string[]
+
+Get all defined authorization roles (levels or groups).
+
+
+Access control (middleware)
+---
+
+Check if a user has a specific role or superseding role
+
+    Jasny\Authz\Middleware asMiddleware(callback $getRequiredRole)
+
+You can apply access control manually using the `is()` method. Alteratively, if you're using a PSR-7 compatible router
+with middleware support (like [Jasny Router](https://github.com/jasny/router)]).
+
+The `$getRequiredRole` callback should return a boolean, string or array of string.
+
+Returning true means a the request will only be handled if a user is logged in.
 
 ```php
-class Auth extends Jasny\Auth implements Jasny\Authz
-{
-    use Jasny\Authz\ByGroup;
+$auth = new Auth(); // Implements the Jasny\Authz interface
 
-    protected $groups;
-
-    protected function getGroupStructure()
-    {
-        if (!isset($this->groups)) {
-            $this->groups = [];
-            $result = $this->db->query("SELECT ...");
-
-            while (($row = $result->fetchAssoc())) {
-                $this->groups[$row['group']] = explode(';', $row['supersedes']);
-            }
-        }
-
-        return $this->groups;
-    }
-}
+$router->add($auth->asMiddleware(function(ServerRequest $request) {
+    return strpos($request->getUri()->getPath(), '/account/') === 0; // `/account/` is only available if logged in
+}));
 ```
 
-For authorization the user object also needs to implement `Jasny\Authz\User`, adding the `getRole()` method. This method
-must return the role of the user or array of roles.
+If the `Auth` class implements authorization (`Authz`) and the callback returns a string, the middleware will check if
+the user is authorized for that role. If an array of string is returned, the user should be authorized for at least one
+of the roles.
 
 ```php
-/**
- * Get the access groups of the user
- * 
- * @return string[]
- */
-public function getRoles()
-{
-    return $this->roles;
-}
+$auth = new Auth(); // Implements the Jasny\Authz interface
+
+$router->add($auth->asMiddleware(function(ServerRequest $request) {
+    $route = $request->getAttribute('route');
+    return isset($route->auth) ? $route->auth : null;
+}));
 ```
+
+Confirmation
+---
 
 ### Confirmation
+
+__TODO__ 
 
 By using the `Auth\Confirmation` trait, you can generate and verify confirmation tokens. This is useful to require a
 use to confirm signup by e-mail or for a password reset functionality.
@@ -326,100 +442,20 @@ class Auth extends Jasny\Auth
 }
 ```
 
-
-Usage
----
-
-### Authentication
-
-Verify username and password
-
-    boolean verify(User $user, string $password)
-
-Login with username and password
-
-    User|null login(string $username, string $password);
-
-Set user without verification
-
-    User|null setUser(User $user)
-
-_If `$user->onLogin()` returns `false`, the user isn't set and the function returns `null`._
-
-Logout
-
-    void logout()
-
-Get current user
-
-    User|null user()
-
-
-### Authorization
-
-Check if a user has a specific role or superseding role
-
-    boolean is(string $role)
-
-```php
-if (!$auth->is('admin')) {
-    http_response_code(403);
-    echo "You're not allowed to see this page";
-    exit();
-}
-```
-
-### Access control (middleware)
-
-Check if a user has a specific role or superseding role
-
-    Jasny\Authz\Middleware asMiddleware(callback $getRequiredRole)
-
-You can apply access control manually using the `is()` method. Alteratively, if you're using a PSR-7 compatible router
-with middleware support (like [Jasny Router](https://github.com/jasny/router)]).
-
-The `$getRequiredRole` callback should return a boolean, string or array of string.
-
-Returning true means a the request will only be handled if a user is logged in.
-
-```php
-$auth = new Auth(); // Implements the Jasny\Authz interface
-
-$router->add($auth->asMiddleware(function(ServerRequest $request) {
-    return strpos($request->getUri()->getPath(), '/account/') === 0; // `/account/` is only available if logged in
-}));
-```
-
-If the `Auth` class implements authorization (`Authz`) and the callback returns a string, the middleware will check if
-the user is authorized for that role. If an array of string is returned, the user should be authorized for at least one
-of the roles.
-
-```php
-$auth = new Auth(); // Implements the Jasny\Authz interface
-
-$router->add($auth->asMiddleware(function(ServerRequest $request) {
-    $route = $request->getAttribute('route');
-    return isset($route->auth) ? $route->auth : null;
-}));
-```
-
-### Confirmation
-
 #### Signup confirmation
 
 Get a verification token. Use it in an url and set that url in an e-mail to the user.
 
 ```php
-// Create a new $user
+$user = new User();
 
-$auth = new Auth();
-$confirmationToken = $auth->getConfirmationToken($user, 'signup');
+$expire = new \DateTime('+30days');
+$token = $auth->confirm('signup')->getToken($user, $expire);
 
-$host = $_SERVER['HTTP_HOST'];
-$url = "http://$host/confirm.php?token=$confirmationToken";
+$url = "http://{$_SERVER['HTTP_HOST']}/confirm.php?token=$token";
     
 mail(
-  $user->getEmail(),
+  $user->email,
   "Welcome to our site",
   "Please confirm your account by visiting $url"
 );
@@ -428,12 +464,11 @@ mail(
 Use the confirmation token to fetch and verify the user
 
 ```php
-// --- confirm.php
+use Jasny\Auth\Confirmation\InvalidTokenException;
 
-$auth = new Auth();
-$user = $auth->fetchUserForConfirmation($_GET['token'], 'signup');
-
-if (!$user) {
+try {
+    $user = $auth->confirm('signup')->from($_GET['token']);
+} catch (InvalidTokenException $exception) {
     http_response_code(400);
     echo "The token is not valid";
     exit();
@@ -447,20 +482,16 @@ if (!$user) {
 
 Get a verification token. Use it in an url and set that url in an e-mail to the user.
 
-Setting the 3th argument to `true` will use the hashed password of the user in the checksum. This means that the token
-will stop working once the password is changed.
-
 ```php
-// Fetch $user by e-mail
+$user = fetchUserByEmail($_GET['email']); // Save the user from the DB
 
-$auth = new MyAuth();
-$confirmationToken = $auth->getConfirmationToken($user, 'reset-password', true);
+$expire = new \DateTime('+48hours');
+$token = $auth->confirm('reset-password')->getToken($user, $expire);
 
-$host = $_SERVER['HTTP_HOST'];
-$url = "http://$host/reset.php?token=$confirmationToken";
+$url = "http://{$_SERVER['HTTP_HOST']}/reset.php?token=$token";
 
 mail(
-  $user->getEmail(),
+  $user->email,
   "Password reset request",
   "You may reset your password by visiting $url"
 );
@@ -469,16 +500,37 @@ mail(
 Use the confirmation token to fetch and verify resetting the password
 
 ```php
-$auth = new MyAuth();
-$user = $auth->fetchUserForConfirmation($_GET['token'], 'reset-password', true);
+use Jasny\Auth\Confirmation\InvalidTokenException;
 
-if (!$user) {
+try {
+    $user = $auth->confirm('reset-password')->from($_GET['token']);
+} catch (InvalidTokenException $exception) {
     http_response_code(400);
     echo "The token is not valid";
     exit();
 }
 
+$expire = new \DateTime('+1hour');
+$postToken = $auth->confirm('change-password')->getToken($user, $expire);
+
 // Show form to set a password
 // ...
 ```
 
+Use the new 'change-password' token to verify changing the password
+
+```php
+use Jasny\Auth\Confirmation\InvalidTokenException;
+
+try {
+    $user = $auth->confirm('change-password')->from($_POST['token']);
+} catch (InvalidTokenException $exception) {
+    http_response_code(400);
+    echo "The token is not valid";
+    exit();
+}
+
+$user->changePassword($_POST['password']);
+
+saveUser($user); // Save the user to the DB
+```

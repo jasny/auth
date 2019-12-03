@@ -117,7 +117,7 @@ class AuthTest extends TestCase
     public function testInitializeWithUserAndContext()
     {
         $user = $this->createConfiguredMock(User::class, ['getId' => 42, 'getAuthChecksum' => 'abc']);
-        $context = $this->createConfiguredMock(Context::class, ['getId' => 'foo']);
+        $context = $this->createConfiguredMock(Context::class, ['getAuthContextId' => 'foo']);
 
         //<editor-fold desc="[prepare mocks]">
         $this->session->expects($this->once())
@@ -482,7 +482,7 @@ class AuthTest extends TestCase
     public function testSetContext()
     {
         $user = $this->createConfiguredMock(User::class, ['getId' => 42, 'getAuthChecksum' => 'abc']);
-        $context = $this->createConfiguredMock(Context::class, ['getId' => 'foo']);
+        $context = $this->createConfiguredMock(Context::class, ['getAuthContextId' => 'foo']);
 
         //<editor-fold desc="[prepare mocks]">
         $this->authz->expects($this->any())->method('user')->willReturn($user);
@@ -523,7 +523,7 @@ class AuthTest extends TestCase
     public function testUpdateSession()
     {
         $user = $this->createConfiguredMock(User::class, ['getId' => 42, 'getAuthChecksum' => 'abc']);
-        $context = $this->createConfiguredMock(Context::class, ['getId' => 'foo']);
+        $context = $this->createConfiguredMock(Context::class, ['getAuthContextId' => 'foo']);
 
         //<editor-fold desc="[prepare mocks]">
         $this->authz->expects($this->any())->method('user')->willReturn($user);

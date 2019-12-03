@@ -14,5 +14,5 @@ interface ContextInterface
      *
      * @return mixed
      */
-    public function getId();
+    public function getAuthContextId();
 }
