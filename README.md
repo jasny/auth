@@ -394,12 +394,25 @@ $router->add($auth->asMiddleware(function(ServerRequest $request) {
 Confirmation
 ---
 
-### Confirmation
+The `Auth` class takes as confirmation service that can be use to create and verify confirmation tokens. This is useful
+to require a user to confirm signup by e-mail or for a password reset functionality.
 
-__TODO__ 
+### No confirmation
 
-By using the `Auth\Confirmation` trait, you can generate and verify confirmation tokens. This is useful to require a
-use to confirm signup by e-mail or for a password reset functionality.
+By default the `Auth` service has a stub object that can't create confirmation tokens. Using `$auth->confirm()`, without
+passing a confirmation when creating `Auth`, will throw an exception.
+
+### Hashids
+
+The `HashidsConfirmation` service creates tokens that includes the user id, expire date, and a checksum using the
+[Hashids](https://hashids.org/php/) library.
+
+A casual user will be unable to get the user id from the hash, but hashids is _not a true encryption algorithm_ and with
+enough tokens a hacker might be able to determine the salt and extract the user id and checksum from tokens. _Note that
+knowing the salt doesn't mean you know the configured secret._
+
+The checksum is the first 24 bytes of the sha256 hash of user id, expire date. For better security you might add want to
+use more than 12 characters. This does result in a larger string for the token.
 
 You need to add a `getConfirmationSecret()` that returns a string that is unique and only known to your application.
 Make sure the confirmation secret is suffiently long, like 20 random characters. For added security, it's better to
@@ -419,14 +432,6 @@ class Auth extends Jasny\Auth
 
 #### Security
 
-The confirmation token exists of the user id and a checksum, which is obfuscated using [hashids](http://hashids.org/).
-
-A casual user will be unable to get the userid from the hash, but hashids is _not a true encryption algorithm_ and with
-enough tokens a hacker might be able to determine the salt and extract the user id and checksum from tokens. _Note that
-knowing the salt doesn't mean you know the configured secret._
-
-The checksum is the first 16 bytes of the sha256 hash of user id + secret. For better security you might add want to
-use more than 12 characters. This does result in a larger string for the token.
 
 ```php
 class Auth extends Jasny\Auth
@@ -483,7 +488,7 @@ try {
 Get a verification token. Use it in an url and set that url in an e-mail to the user.
 
 ```php
-$user = fetchUserByEmail($_GET['email']); // Save the user from the DB
+$user = ...; // Get the user from the DB by email
 
 $expire = new \DateTime('+48hours');
 $token = $auth->confirm('reset-password')->getToken($user, $expire);
@@ -532,5 +537,5 @@ try {
 
 $user->changePassword($_POST['password']);
 
-saveUser($user); // Save the user to the DB
+// Save the user to the DB
 ```

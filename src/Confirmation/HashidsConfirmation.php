@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Jasny\Auth\Confirmation;
 
 use Carbon\CarbonImmutable;
+use DateTimeImmutable;
+use DateTimeInterface;
 use Hashids\Hashids;
 use Jasny\Auth\UserInterface as User;
 use Jasny\Auth\StorageInterface as Storage;
@@ -19,8 +21,8 @@ class HashidsConfirmation implements ConfirmationInterface
 {
     use Immutable\With;
 
-    protected int $confirmLength;
     protected string $subject;
+    protected string $secret;
 
     protected \Closure $createHashids;
     protected Storage $storage;
@@ -28,13 +30,16 @@ class HashidsConfirmation implements ConfirmationInterface
     /**
      * HashidsConfirmation constructor.
      *
+     * @param string                   $secret
      * @param callable(string):Hashids $createHashids
-     * @param int                      $confirmLength
      */
-    public function __construct(callable $createHashids, int $confirmLength = 24)
+    public function __construct(string $secret, ?callable $createHashids)
     {
-        $this->createHashids = \Closure::fromCallable($createHashids);
-        $this->confirmLength = $confirmLength;
+        $this->secret = $secret;
+
+        $this->createHashids = $createHashids !== null
+            ? \Closure::fromCallable($createHashids)
+            : fn(string $salt) => new Hashids($salt);
     }
 
     /**
@@ -66,10 +71,10 @@ class HashidsConfirmation implements ConfirmationInterface
     public function getToken(User $user, \DateTimeInterface $expire): string
     {
         $uid = (string)$user->getId();
-        $date = $expire->format('YmdHisO');
-        $checksum = $this->calcConfirmChecksum($uid, $date, $user->getAuthChecksum());
+        $packedDate = $this->packDate($expire);
+        $checksum = $this->calcChecksum($packedDate, $uid, $user->getAuthChecksum());
 
-        return $this->createHashids()->encodeHex(join("\n", [$checksum, $date, $uid]));
+        return $this->createHashids()->encodeHex($checksum . $packedDate . $uid);
     }
 
     /**
@@ -81,15 +86,18 @@ class HashidsConfirmation implements ConfirmationInterface
      */
     public function from(string $token): User
     {
-        $combined = $this->createHashids()->decodeHex($token);
+        $packed = $this->createHashids()->decodeHex($token);
+        $info = strlen($packed) > 38 ? unpack('Ndate/Ntime/a*uid', $packed, 32) : false;
 
-        if (preg_match(sprintf('/^[0-9a-f]{%d}\n\d{14}[+-]\d{4}\n.+$/', $this->confirmLength), $combined) === 0) {
+        if ($info === false) {
             throw new InvalidTokenException('Invalid confirmation token');
         }
 
-        [$confirm, $date, $uid] = explode("\n", $combined, 3) + ['', '', ''];
+        $uid = $info['uid'];
+        $checksum = substr($packed, 0, 32);
+        $packedDate = substr($packed, 32, 8);
 
-        $this->assertNotExpired($date);
+        $this->assertNotExpired($info['date'], $info['time']);
 
         $user = $this->storage->fetchUserById($uid);
 
@@ -97,7 +105,7 @@ class HashidsConfirmation implements ConfirmationInterface
             throw new InvalidTokenException("User '$uid' doesn't exist");
         }
 
-        if ($confirm !== $this->calcConfirmChecksum($uid, $date, $user->getAuthChecksum())) {
+        if ($checksum !== $this->calcChecksum($packedDate, $uid, $user->getAuthChecksum())) {
             throw new InvalidTokenException("Checksum doesn't match");
         }
         
@@ -105,19 +113,32 @@ class HashidsConfirmation implements ConfirmationInterface
     }
 
     /**
+     * Turn date into binary value.
+     */
+    protected function packDate(\DateTimeInterface $date): string
+    {
+        $utc = CarbonImmutable::instance($date)->utc();
+
+        $dateNumber = (int)$utc->format('Ymd');
+        $timeNumber = (int)$utc->format('His');
+
+        return pack('NN', $dateNumber, $timeNumber);
+    }
+
+    /**
      * Create a hashids service.
      */
-    protected function createHashids(): Hashids
+    public function createHashids(): Hashids
     {
-        return ($this->createHashids)($this->subject);
+        return ($this->createHashids)(hash('sha256', $this->subject . $this->secret, true));
     }
 
     /**
      * Calculate confirmation checksum.
      */
-    protected function calcConfirmChecksum(string $uid, string $date, string $chk): string
+    protected function calcChecksum(string $packedDate, string $uid, string $chk): string
     {
-        return substr(hash('sha256', $uid . $date . $chk), 0, $this->confirmLength);
+        return hash('sha256', $packedDate . $uid . $chk . $this->secret, true);
     }
 
     /**
@@ -125,12 +146,13 @@ class HashidsConfirmation implements ConfirmationInterface
      *
      * @throws InvalidTokenException
      */
-    protected function assertNotExpired(string $date): void
+    protected function assertNotExpired(int $dateNumber, int $timeNumber): void
     {
         try {
-            $expire = CarbonImmutable::createFromFormat('YmdHisO', $date);
+            $dateString = sprintf("%'08d %'06d+0000", $dateNumber, $timeNumber);
+            $expire = CarbonImmutable::createFromFormat('Ymd HisO', $dateString);
         } catch (\Exception $exception) {
-            throw new InvalidTokenException("Token date is invalid", 0, $exception);
+            throw new InvalidTokenException("Token expiration date is invalid", 0, $exception);
         }
 
         if ($expire === false || $expire->isPast()) {

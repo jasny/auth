@@ -29,10 +29,16 @@ class HashidsConfirmationTest extends TestCase
         CarbonImmutable::setTestNow(null);
     }
 
+    protected function getPackedValue(int $date = 20200101)
+    {
+        $checksum = hash('sha256', pack("NNa*a*a*", $date, 120000, '42', 'xyz', 'secret'));
+
+        return pack("H64NNa*", $checksum, $date, 120000, '42');
+    }
+
     public function testGetToken()
     {
-        $hex = join("\n", ["4bd7e1a6bef36da2f5f500a4", "20200101000000+0000", "42"]);
-
+        $hex = $this->getPackedValue();
         $user = $this->createConfiguredMock(User::class, ['getId' => 42, 'getAuthChecksum' => 'xyz']);
 
         $storage = $this->createMock(Storage::class);
@@ -44,11 +50,11 @@ class HashidsConfirmationTest extends TestCase
             ->with($hex)
             ->willReturn('the_token');
 
-        $confirm = (new HashidsConfirmation(fn() => $hashids))
+        $confirm = (new HashidsConfirmation('secret', fn() => $hashids))
             ->withStorage($storage)
             ->withSubject('test');
 
-        $token = $confirm->getToken($user, new \DateTime('2020-01-01T00:00:00+00:00'));
+        $token = $confirm->getToken($user, new \DateTime('2020-01-01T12:00:00+00:00'));
 
         $this->assertEquals('the_token', $token);
     }
@@ -73,14 +79,14 @@ class HashidsConfirmationTest extends TestCase
             ->with('the_token')
             ->willReturn($hex);
 
-        return (new HashidsConfirmation(fn() => $hashids))
+        return (new HashidsConfirmation('secret', fn() => $hashids))
             ->withStorage($storage)
             ->withSubject('test');
     }
 
     public function testFrom()
     {
-        $hex = join("\n", ["4bd7e1a6bef36da2f5f500a4", "20200101000000+0000", "42"]);
+        $hex = $this->getPackedValue();
         $user = $this->createConfiguredMock(User::class, ['getId' => 42, 'getAuthChecksum' => 'xyz']);
 
         $confirm = $this->createService($hex, $user);
@@ -90,8 +96,7 @@ class HashidsConfirmationTest extends TestCase
     
     public function testFromDeletedUser()
     {
-        $hex = join("\n", ["4bd7e1a6bef36da2f5f500a4", "20200101000000+0000", "42"]);
-
+        $hex = $this->getPackedValue();
         $confirm = $this->createService($hex, null);
 
         $this->expectExceptionObject(new InvalidTokenException("User '42' doesn't exist"));
@@ -100,7 +105,7 @@ class HashidsConfirmationTest extends TestCase
     
     public function testFromInvalidChecksum()
     {
-        $hex = join("\n", ["000000000000000000000000", "20200101000000+0000", "42"]);
+        $hex = pack("H64NNa*", hash('sha256', ''), 20200101, 120000, "42");
         $user = $this->createConfiguredMock(User::class, ['getId' => 42, 'getAuthChecksum' => 'xyz']);
 
         $confirm = $this->createService($hex, $user);
@@ -121,21 +126,48 @@ class HashidsConfirmationTest extends TestCase
     
     public function testFromTokenWithInvalidExpireDate()
     {
-        $hex = join("\n", ["000000000000000000000000", "99999999000000+0000", "42"]);
+        $hex = $this->getPackedValue(99999999);
 
         $confirm = $this->createService($hex);
 
-        $this->expectExceptionObject(new InvalidTokenException("Token date is invalid"));
+        $this->expectExceptionObject(new InvalidTokenException("Token expiration date is invalid"));
         $confirm->from('the_token');
     }
 
     public function testFromExpiredToken()
     {
-        $hex = join("\n", ["855c7272569981e79368a47e", "20191101000000+0000", "42"]);
+        $hex = $this->getPackedValue(20191101);
 
         $confirm = $this->createService($hex);
 
         $this->expectExceptionObject(new InvalidTokenException("Token is expired"));
         $confirm->from('the_token');
+    }
+
+    public function testCreateHashIds()
+    {
+        $storage = $this->createMock(Storage::class);
+
+        if (func_num_args() > 1) {
+            $storage->expects($this->once())->method('fetchUserById')
+                ->with('42')
+                ->willReturn($user);
+        } else {
+            $storage->expects($this->never())->method('fetchUserById');
+        }
+
+        /** @var Hashids&MockObject $hashids */
+        $hashids = $this->createMock(Hashids::class);
+
+        $salt = hash('sha256', 'testsecret', true);
+        $callback = $this->createCallbackMock($this->once(), [$salt], $hashids);
+
+        $service = (new HashidsConfirmation('secret', $callback))
+            ->withStorage($storage)
+            ->withSubject('test');
+
+        $result = $service->createHashids();
+
+        $this->assertSame($result, $hashids);
     }
 }
