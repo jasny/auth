@@ -58,7 +58,7 @@ class Levels implements AuthzInterface
      * @param string $value
      * @return static
      */
-    private function withProperty(string $property, $value): self
+    protected function withProperty(string $property, $value): self
     {
         $clone = clone $this;
         $clone->{$property} = $value;
