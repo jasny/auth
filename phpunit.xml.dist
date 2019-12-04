@@ -8,7 +8,7 @@
     convertWarningsToExceptions="true"
 >
     <testsuites>
-        <testsuite>
+        <testsuite name="tests">
             <directory>tests/</directory>
         </testsuite>
     </testsuites>
@@ -18,7 +18,7 @@
         </whitelist>
     </filter>
     <logging>
-        <log type="coverage-text" target="php://stdout"/>
+        <log type="coverage-text" target="php://stdout" showUncoveredFiles="true" />
     </logging>    
 </phpunit>
 

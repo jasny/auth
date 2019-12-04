@@ -1,194 +1,610 @@
 <?php
 
-namespace Jasny;
+namespace Jasny\Auth\Tests;
 
-use Jasny\Auth;
-use PHPUnit_Framework_TestCase as TestCase;
-use PHPUnit_Framework_MockObject_MockObject as MockObject;
-use Jasny\TestHelper;
+use Jasny\Auth\Auth;
+use Jasny\Auth\AuthzInterface as Authz;
+use Jasny\Auth\Confirmation\ConfirmationInterface as Confirmation;
+use Jasny\Auth\ContextInterface as Context;
+use Jasny\Auth\Event;
+use Jasny\Auth\LoginException;
+use Jasny\Auth\Session\SessionInterface as Session;
+use Jasny\Auth\StorageInterface as Storage;
+use Jasny\Auth\UserInterface as User;
+use Jasny\PHPUnit\PrivateAccessTrait;
+use PHPStan\Testing\TestCase;
+use PHPUnit\Framework\MockObject\MockObject;
+use Psr\EventDispatcher\EventDispatcherInterface as EventDispatcher;
 
 /**
- * @covers Jasny\Auth
+ * @covers \Jasny\Auth\Auth
  */
 class AuthTest extends TestCase
 {
-    use TestHelper;
-    
+    use PrivateAccessTrait;
+
+    protected Auth $service;
+
+    /** @var Authz&MockObject */
+    protected $authz;
+    /** @var Session&MockObject */
+    protected $session;
+    /** @var Storage&MockObject */
+    protected $storage;
+    /** @var Confirmation&MockObject */
+    protected $confirmation;
+    /** @var EventDispatcher&MockObject */
+    protected $dispatcher;
+
+    public function setUp(): void
+    {
+        $this->authz = $this->createMock(Authz::class);
+        $this->session = $this->createMock(Session::class);
+        $this->storage = $this->createMock(Storage::class);
+        $this->confirmation = $this->createMock(Confirmation::class);
+        $this->dispatcher = $this->createMock(EventDispatcher::class);
+
+        $this->service = (new Auth($this->authz, $this->storage, $this->confirmation))
+            ->withSession($this->session)
+            ->withEventDispatcher($this->dispatcher);
+    }
+
+
+    protected function expectInitAuthz(?User $user, ?Context $context)
+    {
+        $newAuthz = $this->createMock(Authz::class);
+
+        $this->authz->expects($this->once())->method('forUser')
+            ->with($this->identicalTo($user))
+            ->willReturnSelf();
+        $this->authz->expects($this->once())->method('inContextOf')
+            ->with($this->identicalTo($context))
+            ->willReturn($newAuthz);
+
+        return $newAuthz;
+    }
+
+    public function testInitializeWithoutSession()
+    {
+        //<editor-fold desc="[prepare mocks]">
+        $this->session->expects($this->once())
+            ->method('getInfo')
+            ->willReturn(['uid' => null, 'context' => null, 'checksum' => null]);
+
+        $this->storage->expects($this->never())->method($this->anything());
+        //</editor-fold>
+
+        $newAuthz = $this->expectInitAuthz(null, null);
+
+        $this->assertFalse($this->service->isInitialized());
+
+        $this->service->initialize();
+
+        $this->assertTrue($this->service->isInitialized());
+        $this->assertSame($newAuthz, $this->service->authz());
+
+        return $this->service;
+    }
+
     /**
-     * @var Auth|MockObject 
+     * @depends testInitializeWithoutSession
      */
-    protected $auth;
-    
-    public function setUp()
+    public function testInitializeTwice(Auth $service)
     {
-        $this->auth = $this->getMockForAbstractClass(Auth::class);
+        $this->expectException(\LogicException::class);
+        $service->initialize();
     }
-    
-    
-    public function testHashPassword()
+
+    public function testInitializeWithUser()
     {
-        $hash = $this->auth->hashPassword('abc');
-        $this->assertTrue(password_verify('abc', $hash));
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+
+        //<editor-fold desc="[prepare mocks]">
+        $this->session->expects($this->once())
+            ->method('getInfo')
+            ->willReturn(['uid' => 42, 'context' => null, 'checksum' => 'abc']);
+
+        $this->storage->expects($this->once())->method('fetchUserById')
+            ->with(42)
+            ->willReturn($user);
+        $this->storage->expects($this->never())->method('fetchContext');
+        //</editor-fold>
+
+        $newAuthz = $this->expectInitAuthz($user, null);
+
+        $this->service->initialize();
+
+        $this->assertSame($newAuthz, $this->service->authz());
     }
-    
-    public function invalidPasswordProvider()
+
+    public function testInitializeWithUserAndContext()
+    {
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+        $context = $this->createConfiguredMock(Context::class, ['getAuthId' => 'foo']);
+
+        //<editor-fold desc="[prepare mocks]">
+        $this->session->expects($this->once())
+            ->method('getInfo')
+            ->willReturn(['uid' => 42, 'context' => 'foo', 'checksum' => 'abc']);
+
+        $this->storage->expects($this->once())->method('fetchUserById')
+            ->with(42)
+            ->willReturn($user);
+        $this->storage->expects($this->once())->method('fetchContext')
+            ->with('foo')
+            ->willReturn($context);
+        //</editor-fold>
+
+        $newAuthz = $this->expectInitAuthz($user, $context);
+
+        $this->service->initialize();
+
+        $this->assertSame($newAuthz, $this->service->authz());
+
+        return $this->service;
+    }
+
+    public function testInitializeWithInvalidAuthChecksum()
+    {
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'xyz']);
+
+        //<editor-fold desc="[prepare mocks]">
+        $this->session->expects($this->once())
+            ->method('getInfo')
+            ->willReturn(['uid' => 42, 'context' => null, 'checksum' => 'abc']);
+
+        $this->storage->expects($this->once())->method('fetchUserById')
+            ->with(42)
+            ->willReturn($user);
+        $this->storage->expects($this->never())->method('fetchContext');
+        //</editor-fold>
+
+        $newAuthz = $this->expectInitAuthz(null, null);
+
+        $this->service->initialize();
+
+        $this->assertSame($newAuthz, $this->service->authz());
+    }
+
+    public function initalizedMethodProvider()
     {
         return [
-            [''],
-            [array()],
-            [123]
+            'is(...)' => ['is', 'foo'],
+            'user()' => ['user'],
+            'context()' => ['context'],
         ];
     }
-    
-    /**
-     * @dataProvider invalidPasswordProvider
-     * @expectedException \InvalidArgumentException
-     */
-    public function testHashPasswordWithInvalidArgument($password)
-    {
-        $this->auth->hashPassword($password);
-    }
-    
-    
-    public function testVerifyCredentials()
-    {
-        $hash = password_hash('abc', PASSWORD_BCRYPT);
-        
-        $user = $this->createMock(Auth\User::class);
-        $user->method('getHashedPassword')->willReturn($hash);
-        
-        $this->assertTrue($this->auth->verifyCredentials($user, 'abc'));
-        
-        $this->assertFalse($this->auth->verifyCredentials($user, 'god'));
-        $this->assertFalse($this->auth->verifyCredentials($user, ''));
-    }
-    
-    
-    public function testUserWithoutSessionUser()
-    {
-        $user = $this->createMock(Auth\User::class);
-        $user->expects($this->never())->method('onLogin');
-        
-        $this->auth->expects($this->once())->method('getCurrentUserId')->willReturn(123);
-        $this->auth->expects($this->once())->method('fetchUserById')->with(123)->willReturn($user);
-        
-        $this->assertSame($user, $this->auth->user());
-    }
-    
-    public function testUserWithSessionUser()
-    {
-        $this->assertNull($this->auth->user());
-    }
-    
-    
-    /**
-     * @return Auth|MockObject
-     */
-    public function testSetUser()
-    {
-        $user = $this->createMock(Auth\User::class);
-        
-        $this->auth->expects($this->once())->method('persistCurrentUser');
-        
-        $result = $this->auth->setUser($user);
-        
-        $this->assertSame($user, $result);
-        $this->assertSame($user, $this->auth->user());
-        
-        return $this->auth;
-    }
-    
-    public function testSetUserWithExistingUser()
-    {
-        $this->auth->expects($this->exactly(2))->method('persistCurrentUser');
 
-        $this->auth->setUser($this->createMock(Auth\User::class));
-        
-        $user = $this->createMock(Auth\User::class);
-        $user->expects($this->once())->method('onLogin');
-        
-        $result = $this->auth->setUser($user);
-        
-        $this->assertSame($user, $result);
-        $this->assertSame($user, $this->auth->user());
-    }
-    
-    public function testSetUserWithOnLoginFail()
+    /**
+     * @dataProvider initalizedMethodProvider
+     */
+    public function testAssertInitialized(string $method, ...$args)
     {
-        $this->auth->expects($this->once())->method('persistCurrentUser');
-
-        $oldUser = $this->createMock(Auth\User::class);
-        $this->auth->setUser($oldUser);
-        
-        $user = $this->createMock(Auth\User::class);
-        $user->expects($this->once())->method('onLogin')->willReturn(false);
-        
-        $this->auth->expects($this->never())->method('persistCurrentUser');
-        
-        $result = $this->auth->setUser($user);
-        
-        $this->assertNull($result);
-        $this->assertSame($oldUser, $this->auth->user());
+        $this->expectException(\LogicException::class);
+        $this->service->{$method}(...$args);
     }
-    
-    
+
+
+    public function testGetAvailableRoles()
+    {
+        $this->authz->expects($this->once())->method('getAvailableRoles')
+            ->willReturn(['user', 'manager', 'admin']);
+
+        $this->assertEquals(['user', 'manager', 'admin'], $this->service->getAvailableRoles());
+    }
+
+    public function testIs()
+    {
+        $this->authz->expects($this->once())->method('is')
+            ->with('foo')
+            ->willReturn(true);
+
+        $this->setPrivateProperty($this->service, 'initialized', true);
+
+        $this->assertTrue($this->service->is('foo'));
+    }
+
+    public function testUser()
+    {
+        $user = $this->createMock(User::class);
+        $this->authz->expects($this->once())->method('user')->willReturn($user);
+
+        $this->setPrivateProperty($this->service, 'initialized', true);
+
+        $this->assertSame($user, $this->service->user());
+    }
+
+    public function testContext()
+    {
+        $context = $this->createMock(Context::class);
+        $this->authz->expects($this->once())->method('context')->willReturn($context);
+
+        $this->setPrivateProperty($this->service, 'initialized', true);
+
+        $this->assertSame($context, $this->service->context());
+    }
+
+
+    /**
+     * @return Authz&MockObject
+     */
+    protected function expectSetAuthzUser(?User $user, ?Context $context = null)
+    {
+        $newAuthz = $this->createMock(Authz::class);
+
+        $this->authz->expects($this->once())->method('forUser')
+            ->with($this->identicalTo($user))
+            ->willReturn($newAuthz);
+
+        $newAuthz->expects($this->any())->method('user')
+            ->willReturn($user);
+        $newAuthz->expects($this->any())->method('context')
+            ->willReturn($context);
+
+        return $newAuthz;
+    }
+
+    /**
+     * @return Authz&MockObject
+     */
+    protected function expectSetAuthzContext(?User $user, ?Context $context)
+    {
+        $newAuthz = $this->createMock(Authz::class);
+
+        $this->authz->expects($this->once())->method('inContextOf')
+            ->with($this->identicalTo($context))
+            ->willReturn($newAuthz);
+
+        $newAuthz->expects($this->any())->method('user')
+            ->willReturn($user);
+        $newAuthz->expects($this->any())->method('context')
+            ->willReturn($context);
+
+        return $newAuthz;
+    }
+
+    public function testLoginAs()
+    {
+        //<editor-fold desc="[prepare mocks]">
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+
+        $this->dispatcher->expects($this->once())->method('dispatch')
+            ->with($this->callback(function ($event) use ($user) {
+                $this->assertInstanceOf(Event\Login::class, $event);
+
+                /** @var Event\Login $event */
+                $this->assertSame($user, $event->user());
+                return true;
+            }))
+            ->willReturnArgument(0);
+
+        $this->authz->expects($this->any())->method('user')->willReturn(null);
+        $this->expectSetAuthzUser($user);
+
+        $this->session->expects($this->once())->method('persist')
+            ->with(42, null, 'abc');
+
+        $this->setPrivateProperty($this->service, 'initialized', true);
+        //</editor-fold>
+
+        $this->service->loginAs($user);
+    }
+
+    public function testCancelLogin()
+    {
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+
+        $this->dispatcher->expects($this->once())->method('dispatch')
+            ->with($this->callback(function (Event\Login $event) {
+                $event->cancel('no good');
+                return true;
+            }))
+            ->willReturnArgument(0);
+
+        //<editor-fold desc="[prepare mocks]">
+        $this->authz->expects($this->any())->method('user')->willReturn(null);
+        $this->authz->expects($this->never())->method('forUser');
+        $this->authz->expects($this->never())->method('inContextOf');
+        $this->session->expects($this->never())->method('persist');
+
+        $this->expectException(LoginException::class);
+        $this->expectExceptionMessage('no good');
+        $this->expectExceptionCode(LoginException::CANCELLED);
+
+        $this->setPrivateProperty($this->service, 'initialized', true);
+        //</editor-fold>
+
+        $this->service->loginAs($user);
+    }
+
+    public function testLoginAsTwice()
+    {
+        $user = $this->createMock(User::class);
+
+        //<editor-fold desc="[prepare mocks]">
+        $this->authz->expects($this->any())->method('user')->willReturn($user);
+
+        $this->expectException(\LogicException::class);
+
+        $this->setPrivateProperty($this->service, 'initialized', true);
+        //</editor-fold>
+
+        $this->service->loginAs($user);
+    }
+
     public function testLogin()
     {
-        $hash = password_hash('abc', PASSWORD_BCRYPT);
-        
-        $user = $this->createMock(Auth\User::class);
-        $user->method('getHashedPassword')->willReturn($hash);
-        $user->expects($this->once())->method('onLogin');
-        
-        $this->auth->expects($this->once())->method('fetchUserByUsername')->with('john')->willReturn($user);
-        $this->auth->expects($this->once())->method('persistCurrentUser');
-        
-        $result = $this->auth->login('john', 'abc');
-        
-        $this->assertSame($user, $result);
-        $this->assertSame($user, $this->auth->user());
+        $user = $this->createMock(User::class);
+        $user->expects($this->once())->method('verifyPassword')
+            ->with('pwd')
+            ->willReturn(true);
+
+        $this->storage->expects($this->once())->method('fetchUserByUsername')
+            ->with('john')
+            ->willReturn($user);
+
+        //<editor-fold desc="[prepare mocks]">
+        $user->expects($this->any())->method('getAuthId')->willReturn(42);
+        $user->expects($this->any())->method('getAuthChecksum')->willReturn('xyz');
+
+        $this->dispatcher->expects($this->once())->method('dispatch')
+            ->with($this->callback(function ($event) use ($user) {
+                $this->assertInstanceOf(Event\Login::class, $event);
+
+                /** @var Event\Login $event */
+                $this->assertSame($user, $event->user());
+                return true;
+            }))
+            ->willReturnArgument(0);
+
+        $this->authz->expects($this->any())->method('user')->willReturn(null);
+        $this->expectSetAuthzUser($user);
+
+        $this->session->expects($this->once())->method('persist')
+            ->with(42, null, 'xyz');
+
+        $this->setPrivateProperty($this->service, 'initialized', true);
+        //</editor-fold>
+
+        $this->service->login('john', 'pwd');
     }
-    
-    public function testLoginWithIncorrectPassword()
+
+    public function testLoginWithIncorrectUsername()
     {
-        $hash = password_hash('abc', PASSWORD_BCRYPT);
-        
-        $user = $this->createMock(Auth\User::class);
-        $user->method('getHashedPassword')->willReturn($hash);
-        $user->expects($this->never())->method('onLogin');
-        
-        $this->auth->expects($this->once())->method('fetchUserByUsername')->with('john')->willReturn($user);
-        $this->auth->expects($this->never())->method('persistCurrentUser');
-        
-        $result = $this->auth->login('john', 'god');
-        
-        $this->assertNull($result);
-        $this->assertNull($this->auth->user());
+        $this->storage->expects($this->once())->method('fetchUserByUsername')
+            ->with('john')
+            ->willReturn(null);
+
+        //<editor-fold desc="[prepare mocks]">
+        $this->dispatcher->expects($this->never())->method('dispatch');
+
+        $this->authz->expects($this->any())->method('user')->willReturn(null);
+        $this->authz->expects($this->never())->method('forUser');
+        $this->authz->expects($this->never())->method('inContextOf');
+        $this->session->expects($this->never())->method('persist');
+
+        $this->expectException(LoginException::class);
+        $this->expectExceptionMessage('Invalid credentials');
+        $this->expectExceptionCode(LoginException::INVALID_CREDENTIALS);
+
+        $this->setPrivateProperty($this->service, 'initialized', true);
+        //</editor-fold>
+
+        $this->service->login('john', 'pwd');
     }
-    
+
+    public function testLoginWithInvalidPassword()
+    {
+        $user = $this->createMock(User::class);
+        $user->expects($this->once())->method('verifyPassword')
+            ->with('pwd')
+            ->willReturn(false);
+
+        //<editor-fold desc="[prepare mocks]">
+        $user->expects($this->any())->method('getAuthId')->willReturn(42);
+        $user->expects($this->any())->method('getAuthChecksum')->willReturn('abc');
+
+        $this->storage->expects($this->once())->method('fetchUserByUsername')
+            ->with('john')
+            ->willReturn($user);
+
+        $this->dispatcher->expects($this->never())->method('dispatch');
+
+        $this->authz->expects($this->any())->method('user')->willReturn(null);
+        $this->authz->expects($this->never())->method('forUser');
+        $this->authz->expects($this->never())->method('inContextOf');
+        $this->session->expects($this->never())->method('persist');
+
+        $this->setPrivateProperty($this->service, 'initialized', true);
+        //</editor-fold>
+
+        $this->expectException(LoginException::class);
+        $this->expectExceptionMessage('Invalid credentials');
+        $this->expectExceptionCode(LoginException::INVALID_CREDENTIALS);
+
+        $this->service->login('john', 'pwd');
+    }
+
+    public function testLoginTwice()
+    {
+        //<editor-fold desc="[prepare mocks]">
+        $user = $this->createMock(User::class);
+        $this->authz->expects($this->any())->method('user')->willReturn($user);
+
+        $this->setPrivateProperty($this->service, 'initialized', true);
+        //</editor-fold>
+
+        $this->expectException(\LogicException::class);
+
+        $this->service->login('john', 'pwd');
+    }
+
     public function testLogout()
     {
-        $user = $this->createMock(Auth\User::class);
-        $user->expects($this->once())->method('onLogout');
-        
-        $this->auth->setUser($user);
-        
-        $this->auth->logout();
-        
-        $this->assertNull($this->auth->user());
-        
-        // Logout again shouldn't really do anything
-        $this->auth->logout();
+        //<editor-fold desc="[prepare mocks]">
+        $user = $this->createMock(User::class);
+
+        $this->dispatcher->expects($this->once())->method('dispatch')
+            ->with($this->callback(function ($event) use ($user) {
+                $this->assertInstanceOf(Event\Logout::class, $event);
+
+                /** @var Event\Login $event */
+                $this->assertSame($user, $event->user());
+                return true;
+            }))
+            ->willReturnArgument(0);
+
+        $this->authz->expects($this->any())->method('user')->willReturn($user);
+        $this->session->expects($this->once())->method('clear');
+
+        $this->setPrivateProperty($this->service, 'initialized', true);
+        //</editor-fold>
+
+        $newAuthz = $this->expectInitAuthz(null, null);
+
+        $this->service->logout();
+
+        $this->assertSame($newAuthz, $this->service->authz());
     }
-    
-    
-    public function testAsMiddleware()
+
+    public function testLogoutTwice()
     {
-        $callback = $this->createCallbackMock($this->never());
-        $middleware = $this->auth->asMiddleware($callback);
-        
-        $this->assertInstanceOf(Auth\Middleware::class, $middleware);
-        $this->assertAttributeEquals($this->auth, 'auth', $middleware);
-        $this->assertAttributeEquals($callback, 'getRequiredRole', $middleware);
+        $this->setPrivateProperty($this->service, 'initialized', true);
+
+        $this->authz->expects($this->any())->method('user')->willReturn(null);
+        $this->authz->expects($this->never())->method('forUser');
+        $this->authz->expects($this->never())->method('inContextOf');
+        $this->session->expects($this->never())->method('persist');
+
+        $this->service->logout();
+    }
+
+    public function testSetContext()
+    {
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+        $context = $this->createConfiguredMock(Context::class, ['getAuthId' => 'foo']);
+
+        //<editor-fold desc="[prepare mocks]">
+        $this->authz->expects($this->any())->method('user')->willReturn($user);
+
+        $this->session->expects($this->once())->method('persist')
+            ->with(42, 'foo', 'abc');
+
+        $this->setPrivateProperty($this->service, 'initialized', true);
+        //</editor-fold>
+
+        $newAuthz = $this->expectSetAuthzContext($user, $context);
+
+        $this->service->setContext($context);
+
+        $this->assertSame($newAuthz, $this->service->authz());
+    }
+
+    public function testClearContext()
+    {
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+
+        //<editor-fold desc="[prepare mocks]">
+        $this->authz->expects($this->any())->method('user')->willReturn($user);
+
+        $this->session->expects($this->once())->method('persist')
+            ->with(42, null, 'abc');
+
+        $this->setPrivateProperty($this->service, 'initialized', true);
+        //</editor-fold>
+
+        $newAuthz = $this->expectSetAuthzContext($user, null);
+
+        $this->service->setContext(null);
+
+        $this->assertSame($newAuthz, $this->service->authz());
+    }
+
+    public function testRecalc()
+    {
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+        $context = $this->createConfiguredMock(Context::class, ['getAuthId' => 'foo']);
+
+        $newAuthz = $this->createMock(Authz::class);
+        $this->authz->expects($this->once())->method('recalc')->willReturn($newAuthz);
+
+        //<editor-fold desc="[prepare mocks]">
+        $this->authz->expects($this->never())->method('user');
+        $this->authz->expects($this->never())->method('context');
+
+        $newAuthz->expects($this->any())->method('user')->willReturn($user);
+        $newAuthz->expects($this->any())->method('context')->willReturn($context);
+
+        $this->session->expects($this->never())->method('clear');
+        $this->session->expects($this->once())->method('persist')
+            ->with(42, 'foo', 'abc');
+
+        $this->setPrivateProperty($this->service, 'initialized', true);
+        //</editor-fold>
+
+        $this->service->recalc();
+    }
+
+    public function testRecalcWithoutUser()
+    {
+        //<editor-fold desc="[prepare mocks]">
+        $this->authz->expects($this->once())->method('recalc')->willReturnSelf();
+        $this->authz->expects($this->any())->method('user')->willReturn(null);
+        $this->authz->expects($this->any())->method('context')->willReturn(null);
+
+        $this->session->expects($this->once())->method('clear');
+        $this->session->expects($this->never())->method('persist');
+
+        $this->setPrivateProperty($this->service, 'initialized', true);
+        //</editor-fold>
+
+        $this->service->recalc();
+    }
+
+
+    public function testForUser()
+    {
+        $user = $this->createMock(User::class);
+        $newAuthz = $this->createMock(Authz::class);
+
+        $this->authz->expects($this->once())->method('forUser')
+            ->with($user)
+            ->willReturn($newAuthz);
+
+        $this->setPrivateProperty($this->service, 'initialized', true);
+
+        $this->assertSame($newAuthz, $this->service->forUser($user));
+        $this->assertSame($this->authz, $this->service->authz()); // Not modified
+    }
+
+    public function testForContext()
+    {
+        $context = $this->createMock(Context::class);
+        $newAuthz = $this->createMock(Authz::class);
+
+        $this->authz->expects($this->once())->method('inContextOf')
+            ->with($context)
+            ->willReturn($newAuthz);
+
+        $this->setPrivateProperty($this->service, 'initialized', true);
+
+        $this->assertSame($newAuthz, $this->service->inContextOf($context));
+        $this->assertSame($this->authz, $this->service->authz()); // Not modified
+    }
+
+
+    public function testConfirm()
+    {
+        $newConfirmation = $this->createMock(Confirmation::class);
+
+        $this->confirmation->expects($this->once())->method('withStorage')
+            ->with($this->identicalTo($this->storage))
+            ->willReturnSelf();
+
+        $this->confirmation->expects($this->once())->method('withSubject')
+            ->with('foo bar')
+            ->willReturn($newConfirmation);
+
+        $this->assertSame($newConfirmation, $this->service->confirm('foo bar'));
     }
 }
