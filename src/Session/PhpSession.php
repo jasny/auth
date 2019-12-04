@@ -10,13 +10,15 @@ namespace Jasny\Auth\Session;
 class PhpSession implements SessionInterface
 {
     protected string $key;
+
+    /** @var \ArrayAccess<string,mixed>|null */
     protected ?\ArrayAccess $session;
 
     /**
      * PhpSession constructor.
      *
      * @param string $key
-     * @param \ArrayAccess|null $session Omit to use $_SESSION
+     * @param \ArrayAccess<string,mixed>|null $session  Omit to use $_SESSION
      */
     public function __construct(string $key = 'auth', ?\ArrayAccess $session = null)
     {
@@ -26,6 +28,8 @@ class PhpSession implements SessionInterface
 
     /**
      * Get the auth info from session data.
+     *
+     * @return array<string,mixed>
      */
     protected function getSessionData(): array
     {
@@ -42,7 +46,7 @@ class PhpSession implements SessionInterface
     /**
      * Set the auth info to session data.
      *
-     * @param array $info
+     * @param array<string,mixed> $info
      */
     protected function setSessionData(array $info): void
     {
@@ -69,7 +73,7 @@ class PhpSession implements SessionInterface
      * @codeCoverageIgnore
      * @internal
      *
-     * @param array|null $info
+     * @param array<string,mixed>|null $info
      */
     private function setGlobalSessionData(?array $info): void
     {

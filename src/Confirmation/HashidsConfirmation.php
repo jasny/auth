@@ -117,7 +117,7 @@ class HashidsConfirmation implements ConfirmationInterface
      * Extract uid, expire date and checksum from hex.
      *
      * @param string $hex
-     * @return array{string,CarbonImmutable,string}|null
+     * @return null|array{checksum:string,expire:CarbonImmutable,uid:string|int}
      */
     protected function extractHex(string $hex): ?array
     {
@@ -167,7 +167,7 @@ class HashidsConfirmation implements ConfirmationInterface
             throw new \RuntimeException("Invalid uid");
         }
 
-        return $type === '00' ? hexdec($uidHex) : pack('H*', $uidHex);
+        return $type === '00' ? (int)hexdec($uidHex) : pack('H*', $uidHex);
     }
 
     /**

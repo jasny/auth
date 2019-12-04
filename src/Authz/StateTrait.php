@@ -67,5 +67,4 @@ trait StateTrait
     {
         return $this->context;
     }
-
 }
