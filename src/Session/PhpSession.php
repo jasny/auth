@@ -73,7 +73,7 @@ class PhpSession implements SessionInterface
      * @codeCoverageIgnore
      * @internal
      *
-     * @param array<string,mixed>|null $info
+     * @param null|array<string,mixed> $info
      */
     private function setGlobalSessionData(?array $info): void
     {
