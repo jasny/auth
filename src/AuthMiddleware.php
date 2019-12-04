@@ -15,9 +15,9 @@ use Psr\Http\Server\MiddlewareInterface;
 /**
  * Middleware for access control.
  */
-class AuthzMiddleware implements MiddlewareInterface
+class AuthMiddleware implements MiddlewareInterface
 {
-    protected Authz $authz;
+    protected Authz $auth;
     protected ?ResponseFactory $responseFactory = null;
 
     /** Function to get the required role from the request. */
@@ -26,12 +26,12 @@ class AuthzMiddleware implements MiddlewareInterface
     /**
      * Class constructor
      *
-     * @param Authz    $authz
+     * @param Authz    $auth
      * @param callable $getRequiredRole
      */
-    public function __construct(Authz $authz, callable $getRequiredRole, ?ResponseFactory $responseFactory = null)
+    public function __construct(Authz $auth, callable $getRequiredRole, ?ResponseFactory $responseFactory = null)
     {
-        $this->authz = $authz;
+        $this->auth = $auth;
         $this->responseFactory = $responseFactory;
         $this->getRequiredRole = \Closure::fromCallable($getRequiredRole);
     }
@@ -45,6 +45,8 @@ class AuthzMiddleware implements MiddlewareInterface
      */
     public function process(ServerRequest $request, RequestHandler $handler): Response
     {
+        $this->initialize();
+
         if (!$this->isAllowed($request)) {
             return $this->forbidden($request);
         }
@@ -60,12 +62,24 @@ class AuthzMiddleware implements MiddlewareInterface
     public function asDoublePass(): callable
     {
         return function (ServerRequest $request, Response $response, callable $next): Response {
+            $this->initialize();
+
             if (!$this->isAllowed($request)) {
                 return $this->forbidden($request, $response);
             }
 
             return $next($request, $response);
         };
+    }
+
+    /**
+     * Initialize the auth service.
+     */
+    protected function initialize(): void
+    {
+        if ($this->auth instanceof Auth && !$this->auth->isInitialized()) {
+            $this->auth->initialize();
+        }
     }
 
     /**
@@ -80,11 +94,11 @@ class AuthzMiddleware implements MiddlewareInterface
         }
 
         if (is_bool($requiredRole)) {
-            return ($this->authz->user() !== null) === $requiredRole;
+            return ($this->auth->user() !== null) === $requiredRole;
         }
 
         return Pipeline::with(is_array($requiredRole) ? $requiredRole : [$requiredRole])
-            ->hasAny(fn($role) => $this->authz->is($role));
+            ->hasAny(fn($role) => $this->auth->is($role));
     }
 
     /**
@@ -92,7 +106,7 @@ class AuthzMiddleware implements MiddlewareInterface
      */
     protected function forbidden(ServerRequest $request, ?Response $response = null): Response
     {
-        $unauthorized = $this->authz->user() === null;
+        $unauthorized = $this->auth->user() === null;
 
         $forbiddenResponse = $this->createResponse($unauthorized ? 401 : 403, $response)
             ->withProtocolVersion($request->getProtocolVersion());

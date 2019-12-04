@@ -41,12 +41,32 @@ class LevelsTest extends TestCase
     {
         $this->assertNull($this->authz->user());
 
-        $user = $this->createMock(User::class);
+        $user = $this->createConfiguredMock(User::class, ['getAuthRole' => 'user']);
         $userAuthz = $this->authz->forUser($user);
 
         $this->assertNotSame($this->authz, $userAuthz);
         $this->assertNull($this->authz->user());
         $this->assertSame($user, $userAuthz->user());
+    }
+
+    public function testWithUnknownUserRole()
+    {
+        $user = $this->createConfiguredMock(User::class, ['getAuthRole' => 'foo', 'getAuthId' => 42]);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage("Authorization level 'foo' isn't defined (uid:42)");
+
+        $this->authz = $this->authz->forUser($user);
+    }
+
+    public function testWithInvalidUserRole()
+    {
+        $user = $this->createMock(User::class);
+        $user->expects($this->any())->method('getAuthRole')->willReturn(['user', 'mod']);
+
+        $this->expectException(\UnexpectedValueException::class);
+
+        $this->authz = $this->authz->forUser($user);
     }
 
     public function testContext()
@@ -90,7 +110,7 @@ class LevelsTest extends TestCase
     public function testIsWithUser($role, array $expect)
     {
         $user = $this->createMock(User::class);
-        $user->method('getRole')->willReturn($role);
+        $user->method('getAuthRole')->willReturn($role);
 
         $this->authz = $this->authz->forUser($user);
 
@@ -105,24 +125,42 @@ class LevelsTest extends TestCase
         $this->assertFalse($this->authz->is('foo'));
     }
 
-    public function testIsWithUnknownUserRole()
-    {
-        $user = $this->createConfiguredMock(User::class, ['getRole' => 'foo', 'getId' => 42]);
-        $this->authz = $this->authz->forUser($user);
 
-        $this->expectException(\DomainException::class);
-        $this->expectExceptionMessage("Authorization level 'foo' isn't defined (uid:42)");
-        $this->authz->is('user');
-    }
-
-    public function testIsWithInvalidRole()
+    public function testRecalc()
     {
         $user = $this->createMock(User::class);
-        $user->expects($this->any())->method('getRole')->willReturn(['user', 'mod']);
+        $user->expects($this->exactly(2))->method('getAuthRole')
+            ->willReturnOnConsecutiveCalls('user', 'admin');
 
         $this->authz = $this->authz->forUser($user);
 
-        $this->expectException(\UnexpectedValueException::class);
-        $this->authz->is('user');
+        $this->assertTrue($this->authz->is('user'));
+        $this->assertFalse($this->authz->is('mod'));
+
+        // $user->role = 'admin';
+        $updatedAuthz = $this->authz->recalc();
+
+        $this->assertFalse($this->authz->is('mod'));
+        $this->assertTrue($updatedAuthz->is('mod')); // admin supersedes dev
+    }
+
+    public function testRecalcWithoutAnyChange()
+    {
+        $user = $this->createMock(User::class);
+        $user->expects($this->exactly(2))->method('getAuthRole')
+            ->willReturnOnConsecutiveCalls('user', 'user');
+
+        $this->authz = $this->authz->forUser($user);
+        $updatedAuthz = $this->authz->recalc();
+
+        $this->assertSame($this->authz, $updatedAuthz);
+    }
+
+    public function testRecalcWithoutUser()
+    {
+        $this->authz = $this->authz->forUser(null);
+        $updatedAuthz = $this->authz->recalc();
+
+        $this->assertSame($this->authz, $updatedAuthz);
     }
 }

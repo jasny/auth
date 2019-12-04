@@ -25,6 +25,7 @@ class HashidsConfirmation implements ConfirmationInterface
     protected string $secret;
 
     protected \Closure $createHashids;
+    protected \Closure $encodeUid;
     protected Storage $storage;
 
     /**
@@ -33,7 +34,7 @@ class HashidsConfirmation implements ConfirmationInterface
      * @param string                   $secret
      * @param callable(string):Hashids $createHashids
      */
-    public function __construct(string $secret, ?callable $createHashids)
+    public function __construct(string $secret, ?callable $createHashids = null)
     {
         $this->secret = $secret;
 
@@ -70,11 +71,11 @@ class HashidsConfirmation implements ConfirmationInterface
      */
     public function getToken(User $user, \DateTimeInterface $expire): string
     {
-        $uid = (string)$user->getId();
-        $packedDate = $this->packDate($expire);
-        $checksum = $this->calcChecksum($packedDate, $uid, $user->getAuthChecksum());
+        $uidHex = $this->encodeUid($user->getAuthId());
+        $expireHex = CarbonImmutable::instance($expire)->utc()->format('YmdHis');
+        $checksum = $this->calcChecksum($user, $expire);
 
-        return $this->createHashids()->encodeHex($checksum . $packedDate . $uid);
+        return $this->createHashids()->encodeHex($checksum . $expireHex . $uidHex);
     }
 
     /**
@@ -86,26 +87,26 @@ class HashidsConfirmation implements ConfirmationInterface
      */
     public function from(string $token): User
     {
-        $packed = $this->createHashids()->decodeHex($token);
-        $info = strlen($packed) > 38 ? unpack('Ndate/Ntime/a*uid', $packed, 32) : false;
+        $hex = $this->createHashids()->decodeHex($token);
+        $info = $this->extractHex($hex);
 
-        if ($info === false) {
+        if ($info === null) {
             throw new InvalidTokenException('Invalid confirmation token');
         }
 
-        $uid = $info['uid'];
-        $checksum = substr($packed, 0, 32);
-        $packedDate = substr($packed, 32, 8);
+        /* @var CarbonImmutable $expire */
+        ['checksum' => $checksum, 'expire' => $expire, 'uid' => $uid] = $info;
 
-        $this->assertNotExpired($info['date'], $info['time']);
+        if ($expire->isPast()) {
+            throw new InvalidTokenException("Token is expired");
+        }
 
         $user = $this->storage->fetchUserById($uid);
-
         if ($user === null) {
             throw new InvalidTokenException("User '$uid' doesn't exist");
         }
 
-        if ($checksum !== $this->calcChecksum($packedDate, $uid, $user->getAuthChecksum())) {
+        if ($checksum !== $this->calcChecksum($user, $expire)) {
             throw new InvalidTokenException("Checksum doesn't match");
         }
         
@@ -113,17 +114,73 @@ class HashidsConfirmation implements ConfirmationInterface
     }
 
     /**
-     * Turn date into binary value.
+     * Extract uid, expire date and checksum from hex.
+     *
+     * @param string $hex
+     * @return array{string,CarbonImmutable,string}|null
      */
-    protected function packDate(\DateTimeInterface $date): string
+    protected function extractHex(string $hex): ?array
     {
-        $utc = CarbonImmutable::instance($date)->utc();
+        if (strlen($hex) <= 78) {
+            return null;
+        }
 
-        $dateNumber = (int)$utc->format('Ymd');
-        $timeNumber = (int)$utc->format('His');
+        $checksum = substr($hex, 0, 64);
+        $expireHex = substr($hex, 64, 14);
+        $uidHex = substr($hex, 78);
 
-        return pack('NN', $dateNumber, $timeNumber);
+        try {
+            $uid = $this->decodeUid($uidHex);
+
+            /** @var CarbonImmutable $expire */
+            $expire = CarbonImmutable::createFromFormat('YmdHis', $expireHex, '+00:00');
+        } catch (\Exception $exception) {
+            return null;
+        }
+
+        return ['checksum' => $checksum, 'expire' => $expire, 'uid' => $uid];
     }
+
+    /**
+     * Encode the uid to a hex value.
+     *
+     * @param int|string $uid
+     * @return string
+     */
+    protected function encodeUid($uid): string
+    {
+        return is_int($uid) ? '00' . dechex($uid) : '01' . (unpack('H*', $uid)[1]);
+    }
+
+    /**
+     * Decode the uid to a hex value.
+     *
+     * @param string $hex
+     * @return int|string
+     */
+    protected function decodeUid(string $hex)
+    {
+        $type = substr($hex, 0, 2);
+        $uidHex = substr($hex, 2);
+
+        if ($type !== '00' && $type !== '01') {
+            throw new \RuntimeException("Invalid uid");
+        }
+
+        return $type === '00' ? hexdec($uidHex) : pack('H*', $uidHex);
+    }
+
+    /**
+     * Calculate confirmation checksum.
+     */
+    protected function calcChecksum(User $user, \DateTimeInterface $expire): string
+    {
+        $utc = CarbonImmutable::instance($expire)->utc();
+        $parts = [$utc->format('YmdHis'), $user->getAuthId(), $user->getAuthChecksum(), $this->secret];
+
+        return hash('sha256', join("\0", $parts));
+    }
+
 
     /**
      * Create a hashids service.
@@ -131,32 +188,5 @@ class HashidsConfirmation implements ConfirmationInterface
     public function createHashids(): Hashids
     {
         return ($this->createHashids)(hash('sha256', $this->subject . $this->secret, true));
-    }
-
-    /**
-     * Calculate confirmation checksum.
-     */
-    protected function calcChecksum(string $packedDate, string $uid, string $chk): string
-    {
-        return hash('sha256', $packedDate . $uid . $chk . $this->secret, true);
-    }
-
-    /**
-     * Assert token isn't expired.
-     *
-     * @throws InvalidTokenException
-     */
-    protected function assertNotExpired(int $dateNumber, int $timeNumber): void
-    {
-        try {
-            $dateString = sprintf("%'08d %'06d+0000", $dateNumber, $timeNumber);
-            $expire = CarbonImmutable::createFromFormat('Ymd HisO', $dateString);
-        } catch (\Exception $exception) {
-            throw new InvalidTokenException("Token expiration date is invalid", 0, $exception);
-        }
-
-        if ($expire === false || $expire->isPast()) {
-            throw new InvalidTokenException("Token is expired");
-        }
     }
 }

@@ -12,30 +12,20 @@ use Jasny\Auth\UserInterface as User;
  */
 abstract class AbstractEvent
 {
-    protected Auth $emitter;
     protected User $user;
 
     /**
      * AbstractEvent constructor.
      */
-    public function __construct(Auth $emitter, User $user)
+    public function __construct(Auth $_, User $user)
     {
-        $this->emitter = $emitter;
         $this->user = $user;
     }
 
     /**
-     * Get the event emitter.
+     * Get the user.
      */
-    final public function getEmitter(): Auth
-    {
-        return $this->emitter;
-    }
-
-    /**
-     * Get the event payload.
-     */
-    final public function getUser(): User
+    final public function user(): User
     {
         return $this->user;
     }

@@ -5,18 +5,20 @@ declare(strict_types=1);
 namespace Jasny\Auth\Authz;
 
 use Jasny\Auth\AuthzInterface as Authz;
-use Jasny\Auth\UserInterface as User;
 use Jasny\Auth\ContextInterface as Context;
+use Jasny\Auth\UserInterface as User;
 use Jasny\Immutable;
 
 /**
- * Methods for keeping auth state.
+ * Trait for keeping state (user and context) in authz service.
  */
 trait StateTrait
 {
     use Immutable\With;
 
-    /** Current authenticated user */
+    /**
+     * Current authenticated user
+     */
     protected ?User $user = null;
 
     /**
@@ -24,7 +26,6 @@ trait StateTrait
      * rather than roles globally.
      */
     protected ?Context $context = null;
-
 
     /**
      * Get a copy of the service for the given user.
@@ -39,6 +40,7 @@ trait StateTrait
 
     /**
      * Get a copy of the service for the given context.
+     * Returns $this if authz hasn't changed.
      *
      * @param Context|null $context
      * @return static&Authz
@@ -47,7 +49,6 @@ trait StateTrait
     {
         return $this->withProperty('context', $context);
     }
-
 
     /**
      * Get current authenticated user.
@@ -66,4 +67,5 @@ trait StateTrait
     {
         return $this->context;
     }
+
 }

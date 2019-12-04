@@ -14,9 +14,9 @@ interface UserInterface
     /**
      * Get user id
      *
-     * @return int|string
+     * @return string|int
      */
-    public function getId();
+    public function getAuthId();
 
     /**
      * Verify that the password matches.
@@ -35,5 +35,5 @@ interface UserInterface
      * @param Context|null $context
      * @return int|string|int[]|string[]
      */
-    public function getRole(?Context $context = null);
+    public function getAuthRole(?Context $context = null);
 }

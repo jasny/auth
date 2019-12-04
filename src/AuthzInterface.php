@@ -36,6 +36,13 @@ interface AuthzInterface
      */
     public function inContextOf(?Context $context): self;
 
+    /**
+     * Get a copy, recalculating the authz role of the user.
+     *
+     * @return AuthzInterface
+     */
+    public function recalc(): self;
+
 
     /**
      * Get current authenticated user.

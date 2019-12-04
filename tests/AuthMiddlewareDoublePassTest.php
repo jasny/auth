@@ -2,8 +2,9 @@
 
 namespace Jasny\Auth\Tests;
 
+use Jasny\Auth\Auth;
 use Jasny\Auth\AuthzInterface as Authz;
-use Jasny\Auth\AuthzMiddleware;
+use Jasny\Auth\AuthMiddleware;
 use Jasny\Auth\UserInterface as User;
 use Jasny\PHPUnit\CallbackMockTrait;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -13,22 +14,22 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\StreamInterface as Stream;
 
 /**
- * @covers \Jasny\Auth\AuthzMiddleware
+ * @covers \Jasny\Auth\AuthMiddleware
  */
-class AuthzMiddlewareDoublePassTest extends TestCase
+class AuthMiddlewareDoublePassTest extends TestCase
 {
     use CallbackMockTrait;
 
     /** @var Authz&MockObject */
     protected $authz;
 
-    protected AuthzMiddleware $middleware;
+    protected AuthMiddleware $middleware;
 
     public function setUp(): void
     {
         $this->authz = $this->createMock(Authz::class);
 
-        $this->middleware = new AuthzMiddleware(
+        $this->middleware = new AuthMiddleware(
             $this->authz,
             fn(ServerRequest $request) => $request->getAttribute('auth'),
         );
@@ -188,5 +189,28 @@ class AuthzMiddlewareDoublePassTest extends TestCase
         $result = $doublePass($request, $initialResp, $next);
 
         $this->assertSame($forbidden, $result);
+    }
+
+
+    public function testInitialize()
+    {
+        $auth = $this->createMock(Auth::class);
+        $auth->expects($this->once())->method('isInitialized')->willReturn(false);
+        $auth->expects($this->once())->method('initialize');
+
+        $response = $this->createMock(Response::class);
+
+        $request = $this->createMock(ServerRequest::class);
+        $request->expects($this->once())->method('getAttribute')->with('auth')->willReturn(null);
+
+        $middleware = new AuthMiddleware(
+            $auth,
+            fn(ServerRequest $request) => $request->getAttribute('auth'),
+        );
+
+        $next = $this->createCallbackMock($this->once(), [], $response);
+
+        $doublePass = $middleware->asDoublePass();
+        $doublePass($request, $response, $next);
     }
 }

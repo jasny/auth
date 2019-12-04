@@ -12,7 +12,7 @@ interface ContextInterface
     /**
      * Get context id
      *
-     * @return mixed
+     * @return string|int
      */
-    public function getAuthContextId();
+    public function getAuthId();
 }

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Jasny\Auth\Authz;
 
 use Improved\IteratorPipeline\Pipeline;
-use Jasny\Auth\AuthzInterface;
+use Jasny\Auth\AuthzInterface as Authz;
+use Jasny\Auth\ContextInterface as Context;
+use Jasny\Auth\UserInterface as User;
 
 /**
  * Authorize by access group.
@@ -24,13 +26,29 @@ use Jasny\Auth\AuthzInterface;
  *   $auth = new Auth($authz);
  * </code>
  */
-class Groups implements AuthzInterface
+class Groups implements Authz
 {
     use StateTrait;
 
     /** @var array<string,string[]> */
     protected array $groups;
 
+    /**
+     * Current authenticated user
+     */
+    protected ?User $user = null;
+
+    /**
+     * The authorization context. This could be an organization, where a user has specific roles per organization
+     * rather than roles globally.
+     */
+    protected ?Context $context = null;
+
+    /**
+     * Cached user level. Service has an immutable state.
+     * @var string[]
+     */
+    protected array $userRoles = [];
 
     /**
      * AuthzByGroup constructor.
@@ -44,6 +62,26 @@ class Groups implements AuthzInterface
         }
 
         $this->groups = $groups;
+    }
+
+    /**
+     * Get a copy of the service with a modified property and recalculated
+     * Returns $this if authz hasn't changed.
+     *
+     * @param string $property
+     * @param string $value
+     * @return static
+     */
+    protected function withProperty(string $property, $value): self
+    {
+        $clone = clone $this;
+        $clone->{$property} = $value;
+
+        $clone->calcUserRoles();
+
+        $isSame = $clone->{$property} === $this->{$property} && $clone->userRoles === $this->userRoles;
+
+        return $isSame ? $this : $clone;
     }
 
     /**
@@ -72,7 +110,7 @@ class Groups implements AuthzInterface
         return $expanded;
     }
 
-    
+
     /**
      * Get all available authorization roles (for the current context).
      *
@@ -82,7 +120,6 @@ class Groups implements AuthzInterface
     {
         return array_keys($this->groups);
     }
-
 
     /**
      * Check if the current user is logged in and has specified role.
@@ -94,24 +131,37 @@ class Groups implements AuthzInterface
             return false;
         }
 
-        return in_array($role, $this->getUserRoles(), true);
+        return in_array($role, $this->userRoles, true);
     }
 
     /**
-     * Get the (expanded) roles of the current user.
+     * Get a copy, recalculating the authz level of the user.
+     * Returns $this if authz hasn't changed.
      *
-     * @return string[]
+     * @return static
      */
-    protected function getUserRoles(): array
+    public function recalc(): self
+    {
+        $clone = clone $this;
+        $clone->calcUserRoles();
+
+        return $clone->userRoles === $this->userRoles ? $this : $clone;
+    }
+
+    /**
+     * Calculate the (expanded) roles of the current user.
+     */
+    protected function calcUserRoles(): void
     {
         if ($this->user === null) {
-            return [];
+            $this->userRoles = [];
+            return;
         }
 
-        $role = $this->user->getRole($this->context);
+        $role = $this->user->getAuthRole($this->context);
         $roles = is_array($role) ? $role : [$role];
 
-        return Pipeline::with($roles)
+        $this->userRoles = Pipeline::with($roles)
             ->map(fn($role) => $this->groups[$role] ?? [])
             ->flatten()
             ->unique()

@@ -9,9 +9,14 @@ Jasny Auth
 
 Authentication, authorization and access control for PHP.
 
-* [Installation](#installation)
-* [Setup](#setup)
-* [Usage](#usage)
+**Features**
+
+* Multiple [authorization strategies](#authorization-services), like groups (for acl) and levels.
+* Authorization [context](#context) (eg. "is the user an _admin_ of this _team_").  
+* PSR-14 [events](#events) for login and logout.
+* PSR-15 [middleware](#access-control-middleware) for access control.
+* [Confirmation tokens](#confirmation) for signup confirmation and forgot-password.
+* Customizable to meet the requirements of your application.
 
 ---
 
@@ -24,6 +29,8 @@ Install using composer
 
 Usage
 ---
+
+`Auth` is a composition class. It takes an _authz_, _storage_, and optionally a _confirmation_ service.
 
 ```php
 use Jasny\Auth\Auth;
@@ -42,13 +49,6 @@ if (!$auth->is('admin')) {
     exit();
 }
 ```
-
-
-Setup
----
-
-`Auth` is a composition class. It takes an [`Authz`](#authorization), [`Storage`](#storage), and optionally a
-[`Confirmation`](#confirmation) service.
 
 The `Auth` service isn't usable until it's initialized. This should be done after the session is started.
 
@@ -107,18 +107,12 @@ class User implements Auth\UserInterface
 
     protected string $hashedPassword;
 
-    /**
-     * Get the user ID
-     * 
-     * @return int
-     */
-    public function getId()
+    public function getAuthId()
     {
         return $this->id;
     }
 
     /**
-     * Set the user's password.
      * {@interal This method isn't required by the interface}}. 
      */
     public function changePassword(string $password): void
@@ -126,28 +120,17 @@ class User implements Auth\UserInterface
         $this->hashedPassword = password_hash($password, PASSWORD_BCRYPT);
     }
 
-    /**
-     * Verify that the password matches.
-     */
     public function verifyPassword(string $password): bool
     {
         return password_verify($password, $this->hashedPassword);
     }
 
-    /**
-     * Get checksum/hash for critical user data like username, e-mail, and password.
-     * If the checksum changes, the user is logged out in all sessions.
-     */
     public function getAuthChecksum(): string
     {
         return hash('sha256', $this->username . $this->hashedPassword);
     }
     
-    /**
-     * Get the role of the user.
-     * Uses authorization levels. 
-     */
-    public function getRole(Auth\ContextInterface $context = null): int
+    public function getAuthRole(Auth\ContextInterface $context = null): int
     {
         return $this->accessLevel;
     }
@@ -166,9 +149,9 @@ all levels below. Levels must be integers.
 
 ```php
 use Jasny\Auth\Auth;
-use Jasny\Auth\Authz\Levels;
+use Jasny\Auth\Authz;
 
-$levels = new Levels([
+$levels = new Authz\Levels([
     1 => 'user',
     10 => 'moderator',
     20 => 'admin',
@@ -184,9 +167,9 @@ The `Authz\Groups` service implements authorization using access groups. An acce
 
 ```php
 use Jasny\Auth\Auth;
-use Jasny\Auth\Authz\Groups;
+use Jasny\Auth\Authz;
 
-$groups = new Groups([
+$groups = new Authz\Groups([
     'users' => [],
     'managers' => [],
     'employees' => ['user'],
@@ -197,7 +180,7 @@ $groups = new Groups([
     'firm-partners' => ['lawyers', 'managers']
 ]);
 
-$auth = new Auth($levels, new AuthStorage());
+$auth = new Auth($groups, new AuthStorage());
 ```
 
 When using authorization groups the user may return multiple roles, which will be combined.
@@ -215,7 +198,7 @@ class User implements Auth\UserInterface
     
     // ...
 
-    public function getRole(?Auth\ContextInterface $context = null): array
+    public function getAuthRole(?Auth\ContextInterface $context = null): array
     {
         return $this->roles;
     }
@@ -224,13 +207,110 @@ class User implements Auth\UserInterface
 
 _It's always possible to switch from levels to groups, but usually not visa-versa._
 
-### Context
+Authentication
+---
+
+`Auth` is a service with a mutable state. The login and logout methods change the current user.
+
+### Methods
+
+#### login
+
+    Auth::login(string $username, string $password)
+
+Login with username and password.
+
+Triggers a [login event](#events), which may be used to cancel the login.
+
+The method will throw a `LoginException` if login failed. The code will either be `LoginException::INVALID_CREDENTIALS`
+or `LoginException::CANCELLED` (if cancelled via the login event).
+
+#### loginAs
+
+    Auth::loginAs(UserInterface $user)
+
+Set user without verification. 
+
+Triggers a [login event](#events), which may be used to cancel the login. The method will throw a `LoginException` if
+the login is cancelled.
+
+#### logout
+
+    Auth::logout()
+
+Clear the current user and context.
+
+Triggers a [logout event](#events).
+
+#### user
+
+    Auth::user(): UserInterface|null
+    
+Get the current user. Returns `null` if no user is logged in.
+
+### Events
+
+Calling `login`, `loginAs` and `logout` will trigger an event. To capture these event, register a
+[PSR-14](https://www.php-fig.org/psr/psr-14/) event dispatcher.
+
+```php
+use Jasny\Auth\Auth;
+use Jasny\Auth\Authz;
+use Jasny\Auth\Event;
+use Jasny\EventDispatcher\EventDispatcher;
+use Jasny\EventDispatcher\ListenerProvider;
+
+$accessLog = ...; // Some access log service
+
+$listener = (new ListenerProvider)
+    ->withListener(function(Event\Login $login): void {
+        if ($login->user()->isSuspended()) {
+            $login->cancel("Sorry, you're account is suspended'");
+        }
+    })
+    ->withListener(function(Event\Login $login): void {
+        // do something
+    })
+    ->withListener(function(Event\Logout $logout): void {
+        // do something
+    });
+
+$levels = new Authz\Levels(['user' => 1, 'moderator' => 10, 'admin' => 100]);
+
+$auth = (new Auth($levels, new AuthStorage()))
+    ->withEventDispatcher(new EventDispatcher($listener));
+```
+
+### Recalc
+
+Recalculate the authz roles and store the current auth information in the session.
+
+`Auth::recalc()` typically doesn't have to be called explicitly. If the current user modifies his/her password (causing an auth
+checksum mismatch), this needs to be called to prevent the current user from being logged out.
+
+```php
+$auth->user()->changePassword($_GET['new_password']);
+$auth->recalc();
+```
+
+If the role of the current user is changed, this also needs to be called to use the modified role for authorization.
+
+```php
+$auth->user()->setRole('admin');
+$auth->is('admin'); // still returns false
+
+$auth->recalc();
+$auth->is('admin'); // returns true
+```
+
+Context
+---
 
 By default authorization is global, aka application-wide. However it's possible to set an authz context like an
 organization, team, or board. Rather than checking if a user is an admin in the application, you'd verify is the user
 is an admin of the organization.
 
-Any object that implements 'Jasny\Auth\ContextInterface' can be used as context. The `getAuthContextId()` method should
+Any object that implements 'Jasny\Auth\ContextInterface' can be used as context. The `getAuthId()` method should
 return a value that can be used by the [`Storage`](#storage) implementation to fetch the context.
 
 ```php
@@ -240,156 +320,280 @@ class Organization implements Auth\ContextInterface
 {
     public int $id;
 
-    public function getAuthContextId()
+    public function getAuthId()
     {
-        return ['type' => 'organization', 'id' => $this->id];
+        return $this->id;
     }
 }
 ```
 
+```php
+use Jasny\Auth;
+
+class User implements Auth\UserInterface
+{
+    public int $id;
+    public string $username;
+    public array $roles = [];
+    public array $memberships;
+
+    protected string $hashedPassword;
+
+    // ...
+    
+    public function getAuthRole(Auth\ContextInterface $context = null): array
+    {
+        $membership = $context !== null ? $this->getMembership($context) : null;
+
+        return array_merge($this->roles, $membership->roles ?? []);
+    }
+}
+```
+
+### Methods
+
+#### setContext
+
+    Auth::setContext(ContextInterface $context)
+
+Set the current authorization context for the user.
+
+#### context
+
+    Auth::context(): ContextInterface|null
+    
+Get the current context. Returns `null` if the global context is used.
+
+### setContext vs inContextOf
+
 In some applications the context will be determined on a slug in the URL (like `ltonetwork` in
-`https://github.com/ltonetwork/`). In that case `Context::getAuthContextId()` and `Storage::fetchContext()` should
+`https://github.com/ltonetwork/`). In that case `Context::getAuthId()` and `Storage::fetchContext()` should
 return `null`.
 
-You can either set the context for this request, or use an `Authz` object for that context with `inContextOf()`.
+You can either set the context for this request
 
 ```php
 if (!$auth->inContextOf($organization)->is('admin')) {
     return forbidden();
 }
 
-// OR
+$auth->context(); // returns null
+```
 
+, or use an `Authz` object for that context with `inContextOf()`.
+
+```php
 $auth->setContext($organization);
 
 if (!$auth->is('admin')) {
     return forbidden();
 }
+
+$auth->context(); // returns $organization
 ```
 
-### Events
+### Different type of contexts
 
-__TODO__ 
+In some cases an application has multiple types of authorization contexts. Take Trello for instance, it defines
+application-wide, organization and board privileges.
 
-
-Authentication
----
-
-### login
-
-    Auth::login(string $username, string $password): void
-
-Login with username and password.
-
-Triggers a [login event](#events), which may be used to cancel the login.
-
-The method will throw a `LoginException` if login failed. The code will either be `LoginException::INVALID_CREDENTIALS`
-or `LoginException::CANCELLED` (if cancelled via the login event).
-
-### loginAs
-
-    Auth::loginAs(UserInterface $user): void
-
-Set user without verification. 
-
-Triggers a [login event](#events), which may be used to cancel the login. The method will throw a `LoginException` if
-the login is cancelled.
-
-### setContext
-
-    Auth::setContext(ContextInterface $context): void
-
-Set the current authorization context for the user.
-
-### logout
-
-    Auth::logout(): void
-
-Clear the current user and context.
-
-Triggers a [logout event](#events).
-
-### updateSession
-
-    Auth::updateSession(): void
-    
-Store the current auth information in the session.
-
-This typically doesn't have to be called explicitly. However, if the current user modifies his/her password (causing an
-auth checksum mismatch), this needs to be called to prevent the current user from being logged out.
+In case the context is derived from the URL, both the `Organization` and `Board` class can return `null` for
+`getAuthId()`. If the context needs to be stored in the session, prepend the id with the type;
 
 ```php
-$auth->user()->changePassword($_GET['new_password']);
-$auth->updateSession();
+use Jasny\Auth;
+
+class Organization implements Auth\ContextInterface
+{
+    public int $id;
+
+    public function getAuthId()
+    {
+        return "organization:{$this->id}";
+    }
+}
 ```
 
-### user
+Authorization
+---
 
-    Auth::user(): UserInterface|null
-    
-Get the current user. Returns `null` if no user is logged in.
+The `is()` method checks if the current user has the given role, or has a role that supersedes the given role. 
 
-### context
+```php
+if (!$auth->is('moderator')) {
+    http_response_code(403);
+    echo "You're not allowed to see this page";
+    exit();
+}
 
-    Auth::context(): ContextInterface|null
-    
-Get the current context. Returns `null` if the global context is used.
+$auth->user()->getAuthRole(); // Returns 'admin' which supersedes 'moderator'.
+```
 
-### is
+### Methods
+
+#### is
 
     Auth::is(string $role): bool
 
 Check if a user has a specific role or superseding role
 
-```php
-if (!$auth->is('admin')) {
-    http_response_code(403);
-    echo "You're not allowed to see this page";
-    exit();
-}
-```
-
-### getAvailableRoles
+#### getAvailableRoles
 
     Auth::getAvailableRoles(): string[]
 
 Get all defined authorization roles (levels or groups).
 
+#### authz
+
+    Auth::authz(): Authz
+
+Returns a copy of the `Authz` service with the current user and context.
+
+#### forUser
+
+    Auth::authz(User $user): Authz
+
+Returns a copy of the `Authz` service with the given user, in the current context.
+
+#### inContextOf
+
+    Auth::inContextOf(Context $context): Authz
+
+Returns a copy of the `Authz` service with the current user, in the given context.
+
+
+### Immutable state
+
+The `Auth` service has a mutable state. This means that calling a method a second time with the same arguments can
+give a different result, if the state has changed (by logging in or out, or changing the context).
+
+```php
+if (!$auth->is('admin')) {      // We only want to send the info to an admin.
+    return forbidden();
+}
+
+doSomething();                  // If this function changed the current user,
+sendInfoToAdmin($auth->user()); // the info could be send to a non-admin.
+```
+
+Use `authz()` to prevent such issues.
+
+```php
+$authz = $auth->authz();
+
+if (!$authz->is('admin')) {      // We only want to send the info to an admin.
+    return forbidden();
+}
+
+doSomething();                   // If this function changed the current user,
+sendInfoToAdmin($authz->user()); // the info will still be send to the admin.
+```
+
+#### Authorize other user
+
+`Authz` services have an immutable state. Calling `forUser()` and `inContextOf()` will return a modified copy of the
+authorization service.
+
+```php
+$authz = $auth->authz();
+
+$arnold = fetchUserByUsername('arnold');
+$authzArnold = $authz->forUser($arnold);
+
+// $authz and $authzArnold are *not* the same object
+$authzArnold->is('admin');               // returns true
+$authz->is('admin');                     // returns false, as no user is set
+
+$jasny = fetchOrganizationByName("Jasny");
+$authzArnoldAtJasny->inContextOf($jasny);
+$authzArnoldAtJasny->is('owner');        // returns true;
+```
+
+`Auth::forUser()` and `Auth::inContextOf()` give a copy of the underlying authorization service. The following
+statements are the equivalent
+
+```php
+$auth->forUser();
+$auth->authz()->forUser();
+
+$auth->inContextOf()
+$auth->authz()->inContextOf()
+```
+
+Use `is()` to authorize the given user. The `user()` and `context()` methods are available to get the underlying user
+and context.
+
+```php
+$authzArnoldAtJasny = $auth->forUser($arnold)->inContextOf($jasny);
+
+// $auth isn't modified
+
+$authzArnoldAtJasny->is('owner'); // return true
+$authzArnoldAtJasny->user();      // returns the $arnold user
+$authzArnoldAtJasny->context();   // returns the $jasny organization
+```
+
+#### Recalc
+
+The roles of the user are calculated and stored, so subsequent calls will always give the same result, even if the
+underlying user object is modified.
+
+```php
+$authz->is('admin'); // returns true
+$authz->user()->setRole('user');
+
+$authz->is('admin'); // still returns true
+
+$updatedAuthz = $authz->recalc();
+$updatedAuthz->is('admin'); // returns false
+```
 
 Access control (middleware)
 ---
 
-Check if a user has a specific role or superseding role
+You can apply access control manually using the `is()` method. Alteratively, if you're using a PSR-7 compatible router,
+you can use middleware. `AuthMiddleware` implements [PSR-15 `MiddlewareInterface`](https://www.php-fig.org/psr/psr-15/).
 
-    Jasny\Authz\Middleware asMiddleware(callback $getRequiredRole)
+The constructor takes a callback, which should get the required authorization role / level from the request.
 
-You can apply access control manually using the `is()` method. Alteratively, if you're using a PSR-7 compatible router
-with middleware support (like [Jasny Router](https://github.com/jasny/router)]).
+The callback may return `null` to indicate that anybody can visit the page. Returning `true` means a the request will
+only be handled if a user is logged in, and `false` means that the user may not be logged in.
 
-The `$getRequiredRole` callback should return a boolean, string or array of string.
+```php
+use Jasny\Auth\AuthMiddleware;
+use Psr\Http\Message\ServerRequestInterface ;
 
-Returning true means a the request will only be handled if a user is logged in.
+$middleware = new AuthMiddleware($auth, function (ServerRequestInterface $request) {
+    if (strpos($request->getUri()->getPath(), '/account/') === 0) {
+        return true; // Pages under `/account/` are only available if logged in
+    }
+    
+    if ($request->getUri()->getPath() === '/signup') {
+        return false; // Don't signup if you're already logged in
+    }
+
+    return null;
+});
+
+$router->add($middleware);
+```
+
+If the callback returns a string, the middleware will check if the user is authorized for that role.
 
 ```php
 $auth = new Auth(); // Implements the Jasny\Authz interface
 
 $router->add($auth->asMiddleware(function(ServerRequest $request) {
-    return strpos($request->getUri()->getPath(), '/account/') === 0; // `/account/` is only available if logged in
+    return $request->getAttribute('route.auth');
 }));
 ```
 
-If the `Auth` class implements authorization (`Authz`) and the callback returns a string, the middleware will check if
-the user is authorized for that role. If an array of string is returned, the user should be authorized for at least one
-of the roles.
+If an array of strings is returned, the user should be authorized for at least one of the roles. So returning 
+`['admin', 'provider']` means the user needs to be an admin OR provider.
 
-```php
-$auth = new Auth(); // Implements the Jasny\Authz interface
+#### Initialization
 
-$router->add($auth->asMiddleware(function(ServerRequest $request) {
-    $route = $request->getAttribute('route');
-    return isset($route->auth) ? $route->auth : null;
-}));
-```
+`AuthMiddleware` will automatically initialize `Auth` if required.
 
 Confirmation
 ---
@@ -407,45 +611,33 @@ passing a confirmation when creating `Auth`, will throw an exception.
 The `HashidsConfirmation` service creates tokens that includes the user id, expire date, and a checksum using the
 [Hashids](https://hashids.org/php/) library.
 
-A casual user will be unable to get the user id from the hash, but hashids is _not a true encryption algorithm_ and with
-enough tokens a hacker might be able to determine the salt and extract the user id and checksum from tokens. _Note that
-knowing the salt doesn't mean you know the configured secret._
+    composer require hashids/hashids
 
-The checksum is the first 24 bytes of the sha256 hash of user id, expire date. For better security you might add want to
-use more than 12 characters. This does result in a larger string for the token.
-
-You need to add a `getConfirmationSecret()` that returns a string that is unique and only known to your application.
-Make sure the confirmation secret is suffiently long, like 20 random characters. For added security, it's better to
- configure it through an environment variable rather than putting it in your code.
+#### Setup
 
 ```php
-class Auth extends Jasny\Auth
-{
-  use Jasny\Auth\Confirmation;
+use Jasny\Auth\Auth;
+use Jasny\Auth\Authz;
+use Jasny\Auth\Confirmation\HashidsConfirmation;
 
-  public function getConfirmationSecret()
-  {
-    return getenv('AUTH_CONFIRMATION_SECRET');
-  }
-}
+$confirmation = new HashidsConfirmation(getenv('AUTH_CONFIRMATION_SECRET'));
+
+$levels = new Authz\Levels(['user' => 1, 'admin' => 20]);
+$auth = new Auth($levels, new AuthStorage(), $confirmation);
 ```
 
 #### Security
 
+**The token doesn't depend on hashids for security**, since hashids is _not a true encryption algorithm_. While the user
+id and expire date are obfuscated for a casual user, a hacker might be able to extract this information.
 
-```php
-class Auth extends Jasny\Auth
-{
-  ...
+The token contains a SHA-256 checksum. This checksum includes a confirmation secret. To keep others from generating
+tokens, the a strong secret must be used. Make sure the confirmation secret is sufficiently long, like 32 random
+characters. A short secret might be guessed through brute forcing.
 
-  protected function getConfirmationChecksum($id, $len = 32)
-  {
-    return parent::getConfirmationChecksum($id, $len);
-  }
+It's recommended to configure the secret through an environment variable and not put it in your code.
 
-  ...
-}
-```
+### Examples
 
 #### Signup confirmation
 
@@ -453,6 +645,7 @@ Get a verification token. Use it in an url and set that url in an e-mail to the 
 
 ```php
 $user = new User();
+// Set the user info
 
 $expire = new \DateTime('+30days');
 $token = $auth->confirm('signup')->getToken($user, $expire);
@@ -538,4 +731,87 @@ try {
 $user->changePassword($_POST['password']);
 
 // Save the user to the DB
+```
+
+### Custom confirmation service
+
+Hashids tokens contain all the relevant information and a checksum, which can make the quite long. An alternative is
+generating a random value and storing it to the DB.
+
+It's possible to create a custom confirmation service by implementing the `ConfirmationInterface`. The service should
+be immutable.
+
+```php
+use Jasny\Auth\Confirmation\ConfirmationInterface;
+use Jasny\Auth\Confirmation\InvalidTokenException;
+use Jasny\Auth\StorageInterface;
+use Jasny\Auth\UserInterface;
+
+class MyCustomConfirmation implements ConfirmationInterface
+{
+    protected Storage $storage;
+    protected string $subject;
+
+    protected function storeToken(string $token, string $uid, string $authChecksum, \DateTimeInterface $expire): void
+    {
+        // Store token with user id, auth checksum, subject and expire date to DB
+    }
+
+    protected function fetchTokenInfo(string $token): ?array
+    {
+        // Query DB and return uid, expire date and subject for given token
+    }
+
+
+    public function withStorage(StorageInterface $storage)
+    {
+        $clone = clone $this;
+        $clone->storage = $storage;
+
+        return $clone;
+    }
+
+    public function withSubject(string $subject)
+    {
+        $clone = clone $this;
+        $clone->subject = $subject;
+
+        return $clone;
+    }
+
+    public function getToken(UserInterface $user, \DateTimeInterface $expire): string
+    {
+        $token = base_convert(bin2hex(random_bytes(32)), 16, 36);
+        $this->storeToken($token, $user->getAuthId(), $user->getAuthChecksum(), $expire);
+    
+        return $token;
+    }
+
+    public function from(string $token): UserInterface
+    {
+        $info = $this->fetchTokenInfo($token);
+        
+        if ($info === null) {
+            throw new InvalidTokenException("Invalid token");
+        }
+
+        ['uid' => $uid, 'authChecksum' => $authChecksum, 'expire' => $expire, 'subject' => $subject] = $info;
+
+        if ($expire < new \DateTime()) {
+            throw new InvalidTokenException("Token expired");
+        }
+
+        if ($subject !== $this->subject) {
+            throw new InvalidTokenException("Invalid token");
+        }
+
+        $user = $this->storage->fetchUserById($uid);
+
+        if ($user === null || $user->getAuthChecksum() !== $authChecksum) {
+            throw new InvalidTokenException("Invalid token");
+        }
+
+        return $user;
+    }
+}
 ```

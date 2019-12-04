@@ -2,10 +2,10 @@
 
 namespace Jasny\Auth\Tests;
 
+use Jasny\Auth\Auth;
 use Jasny\Auth\AuthzInterface as Authz;
-use Jasny\Auth\AuthzMiddleware;
+use Jasny\Auth\AuthMiddleware;
 use Jasny\Auth\UserInterface as User;
-use Jasny\PHPUnit\CallbackMockTrait;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface as ServerRequest;
@@ -15,23 +15,23 @@ use Psr\Http\Message\StreamInterface as Stream;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 
 /**
- * @covers \Jasny\Auth\AuthzMiddleware
+ * @covers \Jasny\Auth\AuthMiddleware
  */
-class AuthzMiddlewareTest extends TestCase
+class AuthMiddlewareTest extends TestCase
 {
     /** @var Authz&MockObject */
     protected $authz;
     /** @var ResponseFactory&MockObject */
     protected $responseFactory;
 
-    protected AuthzMiddleware $middleware;
+    protected AuthMiddleware $middleware;
 
     public function setUp(): void
     {
         $this->authz = $this->createMock(Authz::class);
         $this->responseFactory = $this->createMock(ResponseFactory::class);
 
-        $this->middleware = new AuthzMiddleware(
+        $this->middleware = new AuthMiddleware(
             $this->authz,
             fn(ServerRequest $request) => $request->getAttribute('auth'),
             $this->responseFactory,
@@ -187,7 +187,7 @@ class AuthzMiddlewareTest extends TestCase
 
     public function testMissingResponseFactory()
     {
-        $this->middleware = new AuthzMiddleware(
+        $middleware = new AuthMiddleware(
             $this->authz,
             fn(ServerRequest $request) => $request->getAttribute('auth'),
         );
@@ -202,6 +202,55 @@ class AuthzMiddlewareTest extends TestCase
 
         $this->expectException(\LogicException::class);
 
-        $this->middleware->process($request, $handler);
+        $middleware->process($request, $handler);
+    }
+
+
+    public function testInitialize()
+    {
+        $auth = $this->createMock(Auth::class);
+        $auth->expects($this->once())->method('isInitialized')->willReturn(false);
+        $auth->expects($this->once())->method('initialize');
+
+        $response = $this->createMock(Response::class);
+
+        $request = $this->createMock(ServerRequest::class);
+        $request->expects($this->once())->method('getAttribute')->with('auth')->willReturn(null);
+
+        $middleware = new AuthMiddleware(
+            $auth,
+            fn(ServerRequest $request) => $request->getAttribute('auth'),
+        );
+
+        $handler = $this->createMock(RequestHandler::class);
+        $handler->expects($this->once())->method('handle')
+            ->with($this->identicalTo($request))
+            ->willReturn($response);
+
+        $middleware->process($request, $handler);
+    }
+
+    public function testInitializeTwice()
+    {
+        $auth = $this->createMock(Auth::class);
+        $auth->expects($this->once())->method('isInitialized')->willReturn(true);
+        $auth->expects($this->never())->method('initialize');
+
+        $response = $this->createMock(Response::class);
+
+        $request = $this->createMock(ServerRequest::class);
+        $request->expects($this->once())->method('getAttribute')->with('auth')->willReturn(null);
+
+        $middleware = new AuthMiddleware(
+            $auth,
+            fn(ServerRequest $request) => $request->getAttribute('auth'),
+        );
+
+        $handler = $this->createMock(RequestHandler::class);
+        $handler->expects($this->once())->method('handle')
+            ->with($this->identicalTo($request))
+            ->willReturn($response);
+
+        $middleware->process($request, $handler);
     }
 }

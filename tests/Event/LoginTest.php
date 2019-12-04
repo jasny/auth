@@ -12,27 +12,18 @@ use PHPUnit\Framework\TestCase;
 /**
  * @covers \Jasny\Auth\Event\Login
  * @covers \Jasny\Auth\Event\AbstractEvent
+ * @covers \Jasny\Auth\Event\CancellableTrait
  */
 class LoginTest extends TestCase
 {
-    public function testGetEmitter()
+    public function testUser()
     {
         $auth = $this->createMock(Auth::class);
         $user = $this->createMock(User::class);
 
         $login = new Login($auth, $user);
 
-        $this->assertSame($auth, $login->getEmitter());
-    }
-
-    public function testGetUser()
-    {
-        $auth = $this->createMock(Auth::class);
-        $user = $this->createMock(User::class);
-
-        $login = new Login($auth, $user);
-
-        $this->assertSame($user, $login->getUser());
+        $this->assertSame($user, $login->user());
     }
 
     public function testCancel()

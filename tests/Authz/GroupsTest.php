@@ -2,6 +2,8 @@
 
 namespace Jasny\Auth\Tests\Authz;
 
+use Jasny\Auth\ContextInterface as Context;
+use Jasny\Auth\UserInterface;
 use Jasny\Auth\UserInterface as User;
 use Jasny\Auth\Authz\Groups;
 use Jasny\PHPUnit\ExpectWarningTrait;
@@ -80,7 +82,7 @@ class GroupsTest extends TestCase
     public function testIsWithUser($role, array $expect)
     {
         $user = $this->createMock(User::class);
-        $user->expects($this->any())->method('getRole')->willReturn($role);
+        $user->expects($this->any())->method('getAuthRole')->willReturn($role);
 
         $this->authz = $this->authz->forUser($user);
 
@@ -100,10 +102,49 @@ class GroupsTest extends TestCase
 
     public function testIsWithUnknownUserRole()
     {
-        $user = $this->createConfiguredMock(User::class, ['getRole' => 'foo', 'getId' => 42]);
+        $user = $this->createConfiguredMock(User::class, ['getAuthRole' => 'foo', 'getAuthId' => 42]);
         $this->authz = $this->authz->forUser($user);
 
         $this->assertFalse($this->authz->is('user'));
+    }
+
+
+    public function testRecalc()
+    {
+        $user = $this->createMock(User::class);
+        $user->expects($this->exactly(2))->method('getAuthRole')
+            ->willReturnOnConsecutiveCalls('client', 'admin');
+
+        $this->authz = $this->authz->forUser($user);
+
+        $this->assertTrue($this->authz->is('client'));
+        $this->assertFalse($this->authz->is('dev'));
+
+        // $user->role = 'admin';
+        $updatedAuthz = $this->authz->recalc();
+
+        $this->assertFalse($this->authz->is('dev'));
+        $this->assertTrue($updatedAuthz->is('dev')); // admin supersedes dev
+    }
+
+    public function testRecalcWithoutAnyChange()
+    {
+        $user = $this->createMock(User::class);
+        $user->expects($this->exactly(2))->method('getAuthRole')
+            ->willReturnOnConsecutiveCalls('client', 'client');
+
+        $this->authz = $this->authz->forUser($user);
+        $updatedAuthz = $this->authz->recalc();
+
+        $this->assertSame($this->authz, $updatedAuthz);
+    }
+
+    public function testRecalcWithoutUser()
+    {
+        $this->authz = $this->authz->forUser(null);
+        $updatedAuthz = $this->authz->recalc();
+
+        $this->assertSame($this->authz, $updatedAuthz);
     }
 
 
@@ -128,7 +169,7 @@ class GroupsTest extends TestCase
             'king' => ['customer'],
         ]);
 
-        $user = $this->createConfiguredMock(User::class, ['getRole' => $role]);
+        $user = $this->createConfiguredMock(User::class, ['getAuthRole' => $role]);
 
         $this->assertTrue($this->authz->forUser($user)->is('user'));
         $this->assertTrue($this->authz->forUser($user)->is('client'));

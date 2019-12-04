@@ -91,6 +91,14 @@ class Auth implements Authz
     }
 
     /**
+     * Is the service is initialized?
+     */
+    public function isInitialized(): bool
+    {
+        return $this->initialized;
+    }
+
+    /**
      * Throw an exception if the service hasn't been initialized yet.
      *
      * @throws \LogicException
@@ -242,9 +250,23 @@ class Auth implements Authz
     }
 
     /**
+     * Recalculate authz roles for current user and context.
+     * Store the current auth information in the session.
+     *
+     * @return $this
+     */
+    public function recalc(): self
+    {
+        $this->authz = $this->authz->recalc();
+        $this->updateSession();
+
+        return $this;
+    }
+
+    /**
      * Store the current auth information in the session.
      */
-    public function updateSession(): void
+    protected function updateSession(): void
     {
         $user = $this->authz->user();
         $context = $this->authz->context();
@@ -254,8 +276,8 @@ class Auth implements Authz
             return;
         }
 
-        $uid = $user->getId();
-        $cid = $context !== null ? $context->getAuthContextId() : null;
+        $uid = $user->getAuthId();
+        $cid = $context !== null ? $context->getAuthId() : null;
         $checksum = $user->getAuthChecksum();
 
         $this->session->persist($uid, $cid, $checksum);

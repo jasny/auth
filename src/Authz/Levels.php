@@ -7,6 +7,9 @@ namespace Jasny\Auth\Authz;
 use Improved as i;
 use Improved\IteratorPipeline\Pipeline;
 use Jasny\Auth\AuthzInterface;
+use Jasny\Auth\AuthzInterface as Authz;
+use Jasny\Auth\ContextInterface as Context;
+use Jasny\Auth\UserInterface as User;
 
 /**
  * Authorize by access level.
@@ -21,6 +24,8 @@ use Jasny\Auth\AuthzInterface;
  *
  *   $auth = new Auth($authz);
  * </code>
+ *
+ * Levels should be positive integers.
  */
 class Levels implements AuthzInterface
 {
@@ -30,6 +35,11 @@ class Levels implements AuthzInterface
     protected array $levels;
 
     /**
+     * Cached user level. Service has an immutable state.
+     */
+    protected int $userLevel = 0;
+
+    /**
      * AuthzByLevel constructor.
      *
      * @param array<string,int> $levels
@@ -37,6 +47,27 @@ class Levels implements AuthzInterface
     public function __construct(array $levels)
     {
         $this->levels = $levels;
+    }
+
+
+    /**
+     * Get a copy of the service with a modified property and recalculated
+     * Returns $this if authz hasn't changed.
+     *
+     * @param string $property
+     * @param string $value
+     * @return static
+     */
+    private function withProperty(string $property, $value): self
+    {
+        $clone = clone $this;
+        $clone->{$property} = $value;
+
+        $clone->calcUserLevel();
+
+        $isSame = $clone->{$property} === $this->{$property} && $clone->userLevel === $this->userLevel;
+
+        return $isSame ? $this : $clone;
     }
 
     /**
@@ -59,9 +90,22 @@ class Levels implements AuthzInterface
             return false;
         }
 
-        return $this->user !== null
-            ? $this->getUserLevel() >= $this->levels[$role]
-            : false;
+        return $this->userLevel >= $this->levels[$role];
+    }
+
+
+    /**
+     * Get a copy, recalculating the authz level of the user.
+     * Returns $this if authz hasn't changed.
+     *
+     * @return static
+     */
+    public function recalc(): self
+    {
+        $clone = clone $this;
+        $clone->calcUserLevel();
+
+        return $clone->userLevel === $this->userLevel ? $this : $clone;
     }
 
     /**
@@ -69,16 +113,17 @@ class Levels implements AuthzInterface
      *
      * @throws \DomainException for unknown level names
      */
-    protected function getUserLevel(): int
+    private function calcUserLevel(): void
     {
         if ($this->user === null) {
-            throw new \BadMethodCallException('User not set'); // @codeCoverageIgnore
+            $this->userLevel = 0;
+            return;
         }
 
-        $uid = $this->user->getId();
+        $uid = $this->user->getAuthId();
 
         $role = i\type_check(
-            $this->user->getRole($this->context),
+            $this->user->getAuthRole($this->context),
             ['int', 'string'],
             new \UnexpectedValueException("For authz levels the role should be string|int, %s returned (uid:$uid)")
         );
@@ -87,6 +132,6 @@ class Levels implements AuthzInterface
             throw new \DomainException("Authorization level '$role' isn't defined (uid:$uid)");
         }
 
-        return is_string($role) ? $this->levels[$role] : (int)$role;
+        $this->userLevel = is_string($role) ? $this->levels[$role] : (int)$role;
     }
 }
