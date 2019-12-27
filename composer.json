@@ -19,12 +19,12 @@
         "php": ">=7.4.0",
         "ext-ctype": "*",
         "psr/http-message": "^1.0",
-        "improved/iterable": "^0.1.4",
         "psr/http-server-middleware": "^1.0",
-        "jasny/immutable": "^2.0",
         "psr/event-dispatcher": "^1.0",
-        "nesbot/carbon": "^2.27",
-        "psr/http-factory": "^1.0"
+        "psr/http-factory": "^1.0",
+        "improved/iterable": "^0.1.4",
+        "jasny/immutable": "^2.0",
+        "nesbot/carbon": "^2.27"
     },
     "require-dev": {
         "jasny/php-code-quality": "~2.6.0",

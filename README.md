@@ -263,9 +263,7 @@ use Jasny\Auth\Event;
 use Jasny\EventDispatcher\EventDispatcher;
 use Jasny\EventDispatcher\ListenerProvider;
 
-$accessLog = ...; // Some access log service
-
-$listener = (new ListenerProvider)
+$listeners = (new ListenerProvider())
     ->withListener(function(Event\Login $login): void {
         if ($login->user()->isSuspended()) {
             $login->cancel("Sorry, you're account is suspended'");
@@ -281,7 +279,7 @@ $listener = (new ListenerProvider)
 $levels = new Authz\Levels(['user' => 1, 'moderator' => 10, 'admin' => 100]);
 
 $auth = (new Auth($levels, new AuthStorage()))
-    ->withEventDispatcher(new EventDispatcher($listener));
+    ->withEventDispatcher(new EventDispatcher($listeners));
 ```
 
 ### Recalc
@@ -416,6 +414,25 @@ class Organization implements Auth\ContextInterface
     }
 }
 ```
+
+### Automatic context
+
+It might be possible to automatically determine the context for a user. For instance; the user might only be a member of
+one team. In this case the context can be set via the login event handler.
+
+```php
+$listeners = (new ListenerProvider())
+    ->withListener(function(Event\Login $login): void {
+        $teams = $login->user()->teams;
+
+        if (count($teams) === 1) {
+            $login->auth()->setContext($teams[0]);
+        }
+    });
+
+$auth = (new Auth(...))
+    ->withEventDispatcher(new EventDispatcher($listeners));
+```  
 
 Authorization
 ---

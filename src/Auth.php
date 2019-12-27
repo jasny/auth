@@ -225,6 +225,7 @@ class Auth implements Authz
             throw new LoginException($event->getCancellationReason(), LoginException::CANCELLED);
         }
 
+        // Beware; the `authz` property may have been changed via the login event.
         $this->authz = $this->authz->forUser($user);
 
         $this->updateSession();

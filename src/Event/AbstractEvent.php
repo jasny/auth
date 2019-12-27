@@ -12,14 +12,24 @@ use Jasny\Auth\UserInterface as User;
  */
 abstract class AbstractEvent
 {
+    protected Auth $auth;
     protected User $user;
 
     /**
      * AbstractEvent constructor.
      */
-    public function __construct(Auth $_, User $user)
+    public function __construct(Auth $auth, User $user)
     {
+        $this->auth = $auth;
         $this->user = $user;
+    }
+
+    /**
+     * Get the Auth service.
+     */
+    final public function auth(): Auth
+    {
+        return $this->auth;
     }
 
     /**

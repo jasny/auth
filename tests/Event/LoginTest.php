@@ -16,13 +16,14 @@ use PHPUnit\Framework\TestCase;
  */
 class LoginTest extends TestCase
 {
-    public function testUser()
+    public function testGetters()
     {
         $auth = $this->createMock(Auth::class);
         $user = $this->createMock(User::class);
 
         $login = new Login($auth, $user);
 
+        $this->assertSame($auth, $login->auth());
         $this->assertSame($user, $login->user());
     }
 
