@@ -659,7 +659,7 @@ $user = new User();
 $expire = new \DateTime('+30days');
 $token = $auth->confirm('signup')->getToken($user, $expire);
 
-$url = "http://{$_SERVER['HTTP_HOST']}/confirm.php?token=$token";
+$url = "https://{$_SERVER['HTTP_HOST']}/confirm.php?token=$token";
     
 mail(
   $user->email,
@@ -695,7 +695,7 @@ $user = ...; // Get the user from the DB by email
 $expire = new \DateTime('+48hours');
 $token = $auth->confirm('reset-password')->getToken($user, $expire);
 
-$url = "http://{$_SERVER['HTTP_HOST']}/reset.php?token=$token";
+$url = "https://{$_SERVER['HTTP_HOST']}/reset.php?token=$token";
 
 mail(
   $user->email,
