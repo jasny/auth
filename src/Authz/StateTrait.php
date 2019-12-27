@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jasny\Auth\Authz;
 
+use Jasny\Auth\AuthException;
 use Jasny\Auth\AuthzInterface as Authz;
 use Jasny\Auth\ContextInterface as Context;
 use Jasny\Auth\UserInterface as User;
@@ -53,10 +54,14 @@ trait StateTrait
     /**
      * Get current authenticated user.
      *
-     * @return User|null
+     * @throws AuthException if no user is logged in.
      */
-    final public function user(): ?User
+    final public function user(): User
     {
+        if ($this->user === null) {
+            throw new AuthException("The user is not logged in");
+        }
+
         return $this->user;
     }
 
@@ -66,5 +71,13 @@ trait StateTrait
     final public function context(): ?Context
     {
         return $this->context;
+    }
+
+    /**
+     * Check if the current user is logged in.
+     */
+    public function isLoggedIn(): bool
+    {
+        return $this->user !== null;
     }
 }

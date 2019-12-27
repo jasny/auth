@@ -2,6 +2,7 @@
 
 namespace Jasny\Auth\Tests\Authz;
 
+use Jasny\Auth\AuthException;
 use Jasny\Auth\ContextInterface as Context;
 use Jasny\Auth\UserInterface as User;
 use Jasny\Auth\Authz\Levels;
@@ -36,16 +37,23 @@ class LevelsTest extends TestCase
         $this->assertEquals(['user', 'mod', 'admin'], $this->authz->getAvailableRoles());
     }
 
+    public function testNoUser()
+    {
+        $this->assertFalse($this->authz->isLoggedIn());
+
+        $this->expectException(AuthException::class);
+        $this->authz->user();
+    }
 
     public function testUser()
     {
-        $this->assertNull($this->authz->user());
-
         $user = $this->createConfiguredMock(User::class, ['getAuthRole' => 'user']);
         $userAuthz = $this->authz->forUser($user);
 
+        $this->assertTrue($userAuthz->isLoggedIn());
+        $this->assertFalse($this->authz->isLoggedIn());
+
         $this->assertNotSame($this->authz, $userAuthz);
-        $this->assertNull($this->authz->user());
         $this->assertSame($user, $userAuthz->user());
     }
 

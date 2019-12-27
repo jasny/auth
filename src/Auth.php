@@ -121,6 +121,17 @@ class Auth implements Authz
         return $this->authz->getAvailableRoles();
     }
 
+
+    /**
+     * Check if the current user is logged in.
+     */
+    final public function isLoggedIn(): bool
+    {
+        $this->assertInitialized();
+
+        return $this->authz->isLoggedIn();
+    }
+
     /**
      * Check if the current user is logged in and has specified role.
      *
@@ -142,9 +153,9 @@ class Auth implements Authz
     /**
      * Get current authenticated user.
      *
-     * @return User|null
+     * @throws AuthException if no user is logged in.
      */
-    final public function user(): ?User
+    final public function user(): User
     {
         $this->assertInitialized();
 
@@ -171,7 +182,7 @@ class Auth implements Authz
     {
         $this->assertInitialized();
 
-        if ($this->authz->user() !== null) {
+        if ($this->authz->isLoggedIn()) {
             throw new \LogicException("Already logged in");
         }
 
@@ -187,7 +198,7 @@ class Auth implements Authz
     {
         $this->assertInitialized();
 
-        if ($this->authz->user() !== null) {
+        if ($this->authz->isLoggedIn()) {
             throw new \LogicException("Already logged in");
         }
 
@@ -226,11 +237,11 @@ class Auth implements Authz
     {
         $this->assertInitialized();
 
-        $user = $this->authz->user();
-
-        if ($user === null) {
-            return; // already logged out
+        if (!$this->authz()->isLoggedIn()) {
+            return;
         }
+
+        $user = $this->authz->user();
 
         $this->authz = $this->authz->forUser(null)->inContextOf(null);
         $this->updateSession();
@@ -268,13 +279,13 @@ class Auth implements Authz
      */
     protected function updateSession(): void
     {
-        $user = $this->authz->user();
-        $context = $this->authz->context();
-
-        if ($user === null) {
+        if (!$this->authz->isLoggedIn()) {
             $this->session->clear();
             return;
         }
+
+        $user = $this->authz->user();
+        $context = $this->authz->context();
 
         $uid = $user->getAuthId();
         $cid = $context !== null ? $context->getAuthId() : null;

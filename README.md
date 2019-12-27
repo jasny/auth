@@ -15,6 +15,7 @@ Authentication, authorization and access control for PHP.
 * Authorization [context](#context) (eg. "is the user an _admin_ of this _team_").  
 * PSR-14 [events](#events) for login and logout.
 * PSR-15 [middleware](#access-control-middleware) for access control.
+* Session invalidation after password change.
 * [Confirmation tokens](#confirmation) for signup confirmation and forgot-password.
 * Customizable to meet the requirements of your application.
 
@@ -244,9 +245,11 @@ Triggers a [logout event](#events).
 
 #### user
 
-    Auth::user(): UserInterface|null
+    Auth::user(): UserInterface
     
-Get the current user. Returns `null` if no user is logged in.
+Get the current user.
+
+Use `isLoggedIn()` to see if there is a logged in user. This function throws an `AuthException` if no user is logged in.
 
 ### Events
 
@@ -431,11 +434,17 @@ $auth->user()->getAuthRole(); // Returns 'admin' which supersedes 'moderator'.
 
 ### Methods
 
+#### isLoggedIn
+
+    Auth::isLoggedIn(): bool
+    
+Check if a user if logged in.
+
 #### is
 
     Auth::is(string $role): bool
 
-Check if a user has a specific role or superseding role
+Check if a user has a specific role or superseding role.
 
 #### getAvailableRoles
 
@@ -451,13 +460,13 @@ Returns a copy of the `Authz` service with the current user and context.
 
 #### forUser
 
-    Auth::authz(User $user): Authz
+    Auth::authz(User|null $user): Authz
 
 Returns a copy of the `Authz` service with the given user, in the current context.
 
 #### inContextOf
 
-    Auth::inContextOf(Context $context): Authz
+    Auth::inContextOf(Context|null $context): Authz
 
 Returns a copy of the `Authz` service with the current user, in the given context.
 

@@ -94,7 +94,7 @@ class AuthMiddleware implements MiddlewareInterface
         }
 
         if (is_bool($requiredRole)) {
-            return ($this->auth->user() !== null) === $requiredRole;
+            return $this->auth->isLoggedIn() === $requiredRole;
         }
 
         return Pipeline::with(is_array($requiredRole) ? $requiredRole : [$requiredRole])
@@ -106,9 +106,7 @@ class AuthMiddleware implements MiddlewareInterface
      */
     protected function forbidden(ServerRequest $request, ?Response $response = null): Response
     {
-        $unauthorized = $this->auth->user() === null;
-
-        $forbiddenResponse = $this->createResponse($unauthorized ? 401 : 403, $response)
+        $forbiddenResponse = $this->createResponse($this->auth->isLoggedIn() ? 403 : 401, $response)
             ->withProtocolVersion($request->getProtocolVersion());
         $forbiddenResponse->getBody()->write('Access denied');
 
@@ -126,11 +124,16 @@ class AuthMiddleware implements MiddlewareInterface
     {
         if ($this->responseFactory !== null) {
             return $this->responseFactory->createResponse($status);
-        } elseif ($originalResponse !== null) {
-            return $originalResponse->withStatus($status)->withBody(clone $originalResponse->getBody());
-            ;
-        } else {
-            throw new \LogicException('Response factory not set');
         }
+
+        if ($originalResponse !== null) {
+            // There is no standard way to get an empty body without a factory. One of these methods may work.
+            $body = clone $originalResponse->getBody();
+            $body->rewind();
+
+            return $originalResponse->withStatus($status)->withBody($body);
+        }
+
+        throw new \LogicException('Response factory not set');
     }
 }

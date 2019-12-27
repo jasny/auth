@@ -37,7 +37,7 @@ class AuthMiddlewareDoublePassTest extends TestCase
 
     public function testNoRequirements()
     {
-        $this->authz->expects($this->never())->method('user');
+        $this->authz->expects($this->never())->method($this->anything());
 
         $request = $this->createMock(ServerRequest::class);
         $request->expects($this->once())->method('getAttribute')->with('auth')->willReturn(null);
@@ -61,13 +61,13 @@ class AuthMiddlewareDoublePassTest extends TestCase
 
     public function testRequireUser()
     {
-        $user = $this->createMock(User::class);
-        $this->authz->expects($this->atLeastOnce())->method('user')->willReturn($user);
+        $this->authz->expects($this->atLeastOnce())->method('isLoggedIn')->willReturn(true);
 
         $request = $this->createMock(ServerRequest::class);
         $request->expects($this->once())->method('getAttribute')->with('auth')->willReturn(true);
 
         $initialResp = $this->createMock(Response::class);
+        $initialResp->expects($this->never())->method($this->anything());
 
         $response = $this->createMock(Response::class);
         $response->expects($this->never())->method($this->anything());
@@ -86,7 +86,8 @@ class AuthMiddlewareDoublePassTest extends TestCase
 
     public function testRequireNoUser()
     {
-        $this->authz->expects($this->atLeastOnce())->method('user')->willReturn(null);
+        $this->authz->expects($this->atLeastOnce())->method('isLoggedIn')->willReturn(false);
+        $this->authz->expects($this->never())->method('user');
 
         $request = $this->createMock(ServerRequest::class);
         $request->expects($this->once())->method('getAttribute')->with('auth')->willReturn(false);
@@ -110,7 +111,8 @@ class AuthMiddlewareDoublePassTest extends TestCase
 
     public function testLoginRequired()
     {
-        $this->authz->expects($this->atLeastOnce())->method('user')->willReturn(null);
+        $this->authz->expects($this->atLeastOnce())->method('isLoggedIn')->willReturn(false);
+        $this->authz->expects($this->never())->method('user');
 
         $request = $this->createMock(ServerRequest::class);
         $request->expects($this->once())->method('getAttribute')->with('auth')->willReturn(true);
@@ -162,9 +164,7 @@ class AuthMiddlewareDoublePassTest extends TestCase
 
     public function testAccessDenied()
     {
-        $user = $this->createMock(User::class);
-
-        $this->authz->expects($this->atLeastOnce())->method('user')->willReturn($user);
+        $this->authz->expects($this->atLeastOnce())->method('isLoggedIn')->willReturn(true);
         $this->authz->expects($this->once())->method('is')->with('foo')->willReturn(false);
 
         $request = $this->createMock(ServerRequest::class);

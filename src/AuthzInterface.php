@@ -46,16 +46,19 @@ interface AuthzInterface
 
     /**
      * Get current authenticated user.
-     *
-     * @return User|null
      */
-    public function user(): ?User;
+    public function user(): User;
 
     /**
      * Get the current context.
      */
     public function context(): ?Context;
 
+
+    /**
+     * Check if the current user is logged in.
+     */
+    public function isLoggedIn(): bool;
 
     /**
      * Check if the current user is logged in and has specified role.

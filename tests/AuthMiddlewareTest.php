@@ -40,7 +40,7 @@ class AuthMiddlewareTest extends TestCase
 
     public function testNoRequirements()
     {
-        $this->authz->expects($this->never())->method('user');
+        $this->authz->expects($this->never())->method($this->anything());
 
         $this->responseFactory->expects($this->never())->method('createResponse');
 
@@ -62,8 +62,7 @@ class AuthMiddlewareTest extends TestCase
 
     public function testRequireUser()
     {
-        $user = $this->createMock(User::class);
-        $this->authz->expects($this->atLeastOnce())->method('user')->willReturn($user);
+        $this->authz->expects($this->atLeastOnce())->method('isLoggedIn')->willReturn(true);
 
         $this->responseFactory->expects($this->never())->method('createResponse');
 
@@ -85,7 +84,7 @@ class AuthMiddlewareTest extends TestCase
 
     public function testRequireNoUser()
     {
-        $this->authz->expects($this->atLeastOnce())->method('user')->willReturn(null);
+        $this->authz->expects($this->atLeastOnce())->method('isLoggedIn')->willReturn(false);
 
         $this->responseFactory->expects($this->never())->method('createResponse');
 
@@ -107,7 +106,7 @@ class AuthMiddlewareTest extends TestCase
 
     public function testLoginRequired()
     {
-        $this->authz->expects($this->atLeastOnce())->method('user')->willReturn(null);
+        $this->authz->expects($this->atLeastOnce())->method('isLoggedIn')->willReturn(false);
 
         $request = $this->createMock(ServerRequest::class);
         $request->expects($this->once())->method('getAttribute')->with('auth')->willReturn(true);
@@ -158,7 +157,7 @@ class AuthMiddlewareTest extends TestCase
     {
         $user = $this->createMock(User::class);
 
-        $this->authz->expects($this->atLeastOnce())->method('user')->willReturn($user);
+        $this->authz->expects($this->atLeastOnce())->method('isLoggedIn')->willReturn(true);
         $this->authz->expects($this->once())->method('is')->with('foo')->willReturn(false);
 
         $request = $this->createMock(ServerRequest::class);
@@ -192,7 +191,7 @@ class AuthMiddlewareTest extends TestCase
             fn(ServerRequest $request) => $request->getAttribute('auth'),
         );
 
-        $this->authz->expects($this->atLeastOnce())->method('user')->willReturn(null);
+        $this->authz->expects($this->atLeastOnce())->method('isLoggedIn')->willReturn(false);
 
         $request = $this->createMock(ServerRequest::class);
         $request->expects($this->once())->method('getAttribute')->with('auth')->willReturn(true);
