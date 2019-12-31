@@ -79,7 +79,9 @@ class Auth implements Authz
         ['uid' => $uid, 'context' => $cid, 'checksum' => $checksum] = $this->session->getInfo();
 
         $user = $uid !== null ? $this->storage->fetchUserById($uid) : null;
-        $context = $cid !== null ? $this->storage->fetchContext($cid) : null;
+        $context = $cid !== null
+            ? $this->storage->fetchContext($cid)
+            : ($user !== null ? $this->storage->getContextForUser($user) : null);
 
         if ($user !== null && $user->getAuthChecksum() !== $checksum) {
             $user = null;
@@ -227,6 +229,11 @@ class Auth implements Authz
 
         // Beware; the `authz` property may have been changed via the login event.
         $this->authz = $this->authz->forUser($user);
+
+        if ($this->authz->context() === null) {
+            $context = $this->storage->getContextForUser($user);
+            $this->authz = $this->authz->inContextOf($context);
+        }
 
         $this->updateSession();
     }

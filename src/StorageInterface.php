@@ -35,4 +35,12 @@ interface StorageInterface
      * @return Context|null
      */
     public function fetchContext($id): ?Context;
+
+    /**
+     * Get the default context for the user.
+     *
+     * @param User $user
+     * @return Context|null
+     */
+    public function getContextForUser(User $user): ?Context;
 }

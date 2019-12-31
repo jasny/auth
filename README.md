@@ -90,6 +90,14 @@ class AuthStorage implements Auth\StorageInterface
     {
         // Database action that fetches a context (or return null)
     }
+    
+    /**
+     * Get the default context of the user.  
+     */
+    public function getContextForUser(Auth\UserInterface $user) : ?Auth\ContextInterface
+    {
+        return null;
+    }
 }
 ```
 
@@ -415,23 +423,26 @@ class Organization implements Auth\ContextInterface
 }
 ```
 
-### Automatic context
+### Default context for user
 
 It might be possible to automatically determine the context for a user. For instance; the user might only be a member of
-one team. In this case the context can be set via the login event handler.
+one team. The storage service must implement the method `getContextForUser()`. This method should return the default
+context of the user.
 
 ```php
-$listeners = (new ListenerProvider())
-    ->withListener(function(Event\Login $login): void {
-        $teams = $login->user()->teams;
+use Jasny\Auth;
 
-        if (count($teams) === 1) {
-            $login->auth()->setContext($teams[0]);
-        }
-    });
+class AuthStorage implements Auth\StorageInterface
+{
+    // ...
 
-$auth = (new Auth(...))
-    ->withEventDispatcher(new EventDispatcher($listeners));
+    public function getContextForUser(Auth\UserInterface $user): ?Auth\ContextInterface
+    {
+        return $user instanceof User && count($user->teams) === 1
+            ? $user->teams[0]
+            : null;
+    }
+}
 ```  
 
 Authorization
