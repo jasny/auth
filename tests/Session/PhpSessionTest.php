@@ -28,16 +28,16 @@ class PhpSessionTest extends TestCase
 
     public function testGetInfo()
     {
-        $_SESSION['auth'] = ['uid' => 'abc', 'context' => 99, 'checksum' => 'xyz', 'foo' => 'bar'];
+        $_SESSION['auth'] = ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz', 'foo' => 'bar'];
 
         $info = $this->service->getInfo();
-        $this->assertEquals(['uid' => 'abc', 'context' => 99, 'checksum' => 'xyz'], $info);
+        $this->assertEquals(['user' => 'abc', 'context' => 99, 'checksum' => 'xyz'], $info);
     }
 
     public function testGetInfoDefaults()
     {
         $info = $this->service->getInfo();
-        $this->assertEquals(['uid' => null, 'context' => null, 'checksum' => null], $info);
+        $this->assertEquals(['user' => null, 'context' => null, 'checksum' => null], $info);
     }
 
     public function testPersist()
@@ -45,12 +45,12 @@ class PhpSessionTest extends TestCase
         $this->service->persist('abc', 99, 'xyz');
 
         $this->assertArrayHasKey('auth', $_SESSION);
-        $this->assertEquals($_SESSION['auth'], ['uid' => 'abc', 'context' => 99, 'checksum' => 'xyz']);
+        $this->assertEquals($_SESSION['auth'], ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz']);
     }
 
     public function testClear()
     {
-        $_SESSION['auth'] = ['uid' => 'abc', 'context' => 99, 'checksum' => 'xyz'];
+        $_SESSION['auth'] = ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz'];
 
         $this->service->clear();
         $this->assertArrayNotHasKey('auth', $_SESSION);

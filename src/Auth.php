@@ -33,6 +33,9 @@ class Auth implements Authz
     protected Confirmation $confirmation;
     protected EventDispatcher $dispatcher;
 
+    /** Allow service to be re-initialized */
+    protected bool $forMultipleRequests = false;
+
     /**
      * Auth constructor.
      */
@@ -44,6 +47,16 @@ class Auth implements Authz
 
         // Set default services
         $this->dispatcher = self::dummyDispatcher();
+    }
+
+    /**
+     * Get a copy of the service that allows reinitializing it.
+     *
+     * @return static
+     */
+    public function forMultipleRequests(): self
+    {
+        return $this->withProperty('forMultipleRequests', true);
     }
 
     /**
@@ -61,24 +74,17 @@ class Auth implements Authz
     public function initialize(?Session $session = null): void
     {
         if ($this->isInitialized()) {
-            throw new \LogicException("Auth service is already initialized");
+            if (!$this->forMultipleRequests) {
+                throw new \LogicException("Auth service is already initialized");
+            }
+
+            $this->authz = $this->authz()->forUser(null)->inContextOf(null);
         }
 
         $this->session = $session ?? new PhpSession();
-
         ['user' => $user, 'context' => $context] = $this->getInfoFromSession();
 
         $this->authz = $this->authz->forUser($user)->inContextOf($context);
-    }
-
-    /**
-     * Set the auth service to the uninitialized state.
-     * This is only intended for the testing environment.
-     */
-    public function reset(): void
-    {
-        $this->authz = $this->authz->forUser(null)->inContextOf(null);
-        unset($this->session);
     }
 
     /**
@@ -88,7 +94,7 @@ class Auth implements Authz
      */
     protected function getInfoFromSession()
     {
-        ['uid' => $uid, 'context' => $cid, 'checksum' => $checksum] = $this->session->getInfo();
+        ['user' => $uid, 'context' => $cid, 'checksum' => $checksum] = $this->session->getInfo();
 
         $user = $uid !== null
             ? ($uid instanceof User ? $uid : $this->storage->fetchUserById($uid))

@@ -36,7 +36,7 @@ class PhpSession implements SessionInterface
     /**
      * Get auth information from session.
      *
-     * @return array{uid:mixed,context:mixed,checksum:string|null}
+     * @return array{user:mixed,context:mixed,checksum:string|null}
      */
     public function getInfo(): array
     {
@@ -45,7 +45,7 @@ class PhpSession implements SessionInterface
         $data = $_SESSION[$this->key] ?? [];
 
         return [
-            'uid' => $data['uid'] ?? null,
+            'user' => $data['user'] ?? null,
             'context' => $data['context'] ?? null,
             'checksum' => $data['checksum'] ?? null,
         ];
@@ -54,15 +54,15 @@ class PhpSession implements SessionInterface
     /**
      * Persist auth information to session.
      *
-     * @param string|int  $uid
-     * @param mixed       $context
+     * @param mixed       $userId
+     * @param mixed       $contextId
      * @param string|null $checksum
      */
-    public function persist($uid, $context, ?string $checksum): void
+    public function persist($userId, $contextId, ?string $checksum): void
     {
         $this->assertSessionStarted();
 
-        $_SESSION[$this->key] = compact('uid', 'context', 'checksum');
+        $_SESSION[$this->key] = ['user' => $userId, 'context' => $contextId, 'checksum' => $checksum];
     }
 
     /**

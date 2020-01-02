@@ -127,7 +127,7 @@ class AuthTest extends TestCase
         //<editor-fold desc="[prepare mocks]">
         $this->session->expects($this->once())
             ->method('getInfo')
-            ->willReturn(['uid' => null, 'context' => null, 'checksum' => null]);
+            ->willReturn(['user' => null, 'context' => null, 'checksum' => null]);
 
         $this->storage->expects($this->never())->method($this->anything());
         //</editor-fold>
@@ -164,7 +164,7 @@ class AuthTest extends TestCase
         //<editor-fold desc="[prepare mocks]">
         $this->session->expects($this->once())
             ->method('getInfo')
-            ->willReturn(['uid' => 42, 'context' => null, 'checksum' => 'abc']);
+            ->willReturn(['user' => 42, 'context' => null, 'checksum' => 'abc']);
 
         $this->storage->expects($this->once())->method('fetchUserById')
             ->with(42)
@@ -190,7 +190,7 @@ class AuthTest extends TestCase
         //<editor-fold desc="[prepare mocks]">
         $this->session->expects($this->once())
             ->method('getInfo')
-            ->willReturn(['uid' => 42, 'context' => 'foo', 'checksum' => 'abc']);
+            ->willReturn(['user' => 42, 'context' => 'foo', 'checksum' => 'abc']);
 
         $this->storage->expects($this->once())->method('fetchUserById')
             ->with(42)
@@ -218,7 +218,7 @@ class AuthTest extends TestCase
         //<editor-fold desc="[prepare mocks]">
         $this->session->expects($this->once())
             ->method('getInfo')
-            ->willReturn(['uid' => $user, 'context' => $context, 'checksum' => 'abc']);
+            ->willReturn(['user' => $user, 'context' => $context, 'checksum' => 'abc']);
 
         $this->storage->expects($this->never())->method('fetchUserById');
         $this->storage->expects($this->never())->method('fetchContext');
@@ -241,7 +241,7 @@ class AuthTest extends TestCase
         //<editor-fold desc="[prepare mocks]">
         $this->session->expects($this->once())
             ->method('getInfo')
-            ->willReturn(['uid' => 42, 'context' => null, 'checksum' => 'abc']);
+            ->willReturn(['user' => 42, 'context' => null, 'checksum' => 'abc']);
 
         $this->storage->expects($this->once())->method('fetchUserById')
             ->with(42)
@@ -275,34 +275,53 @@ class AuthTest extends TestCase
         $this->service->{$method}(...$args);
     }
 
-    public function testReset()
+    /**
+     * @group initialize
+     */
+    public function testForMultipleRequests()
     {
         $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+        $apikey = $this->createConfiguredMock(User::class, ['getAuthId' => 'key:abc', 'getAuthChecksum' => '']);
 
         //<editor-fold desc="[prepare mocks]">
-        $session = $this->createMock(Session::class);
-
-        $session->expects($this->once())
+        $sessionOne = $this->createMock(Session::class);
+        $sessionOne->expects($this->once())
             ->method('getInfo')
-            ->willReturn(['uid' => 42, 'context' => null, 'checksum' => 'abc']);
+            ->willReturn(['user' => 42, 'context' => null, 'checksum' => 'abc']);
 
-        $this->storage->expects($this->once())->method('fetchUserById')
-            ->with(42)
-            ->willReturn($user);
+        $sessionTwo = $this->createMock(Session::class);
+        $sessionTwo->expects($this->once())
+            ->method('getInfo')
+            ->willReturn(['user' => 'key:abc', 'context' => null, 'checksum' => '']);
+
+        $this->storage->expects($this->exactly(2))->method('fetchUserById')
+            ->withConsecutive([42], ['key:abc'])
+            ->willReturnOnConsecutiveCalls($user, $apikey);
 
         $this->storage->expects($this->never())->method('fetchContext');
+
+        $authzOne = $this->createMock(Authz::class);
+        $authzTwo = $this->createMock(Authz::class);
+
+        $this->authz->expects($this->exactly(2))->method('forUser')
+            ->withConsecutive([$this->identicalTo($user)], [$this->identicalTo($apikey)])
+            ->willReturnSelf();
+        $this->authz->expects($this->exactly(2))->method('inContextOf')
+            ->with(null)
+            ->willReturnOnConsecutiveCalls($authzOne, $authzTwo);
+
+        $authzOne->expects($this->once())->method('forUser')->with(null)->willReturnSelf();
+        $authzOne->expects($this->once())->method('inContextOf')->with(null)->willReturn($this->authz);
         //</editor-fold>
 
-        try {
-            $this->service->initialize($session);
-            $this->fail("Should have thrown a LogicException before reset");
-        } catch (\LogicException $exception) {
-            // Ok
-        }
+        $service = $this->service->forMultipleRequests();
+        $this->assertNotSame($this->service, $service);
 
-        $this->service->reset();
+        $service->initialize($sessionOne);
+        $this->assertSame($authzOne, $service->authz());
 
-        $this->service->initialize($session);
+        $service->initialize($sessionTwo);
+        $this->assertSame($authzTwo, $service->authz());
     }
 
 

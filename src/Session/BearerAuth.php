@@ -28,7 +28,7 @@ class BearerAuth implements SessionInterface
     /**
      * Get auth information.
      *
-     * @return array{uid:string|null,context:mixed,checksum:string|null}
+     * @return array{user:string|null,context:mixed,checksum:string|null}
      */
     public function getInfo(): array
     {
@@ -37,11 +37,11 @@ class BearerAuth implements SessionInterface
             : '';
 
         if ($token === '') {
-            return ['uid' => null, 'context' => null, 'checksum' => null];
+            return ['user' => null, 'context' => null, 'checksum' => null];
         }
 
         return [
-            'uid' => sprintf($this->idFormat, $token),
+            'user' => sprintf($this->idFormat, $token),
             'context' => null,
             'checksum' => '',
         ];
@@ -51,12 +51,11 @@ class BearerAuth implements SessionInterface
     /**
      * Persist auth information to session.
      *
-     * @param string|int $uid
-     * @param mixed $context
+     * @param mixed       $userId
+     * @param mixed       $contextId
      * @param string|null $checksum
-     * @throws \LogicException Since bearer authorization can't be modified server side.
      */
-    public function persist($uid, $context, ?string $checksum): void
+    public function persist($userId, $contextId, ?string $checksum): void
     {
         throw new \LogicException("Unable to persist auth info when using bearer authorization");
     }

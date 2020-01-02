@@ -22,7 +22,7 @@ class SessionObjectTest extends TestCase
 
     public function testGetInfo()
     {
-        $data = ['uid' => 'abc', 'context' => 99, 'checksum' => 'xyz'];
+        $data = ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz'];
         $this->session['auth'] = $data + ['other' => 'q'];
 
         $info = $this->service->getInfo();
@@ -32,7 +32,7 @@ class SessionObjectTest extends TestCase
     public function testGetInfoDefaults()
     {
         $info = $this->service->getInfo();
-        $this->assertEquals(['uid' => null, 'context' => null, 'checksum' => null], $info);
+        $this->assertEquals(['user' => null, 'context' => null, 'checksum' => null], $info);
     }
 
     public function testPersist()
@@ -40,12 +40,12 @@ class SessionObjectTest extends TestCase
         $this->service->persist('abc', 99, 'xyz');
 
         $this->assertArrayHasKey('auth', $this->session->getArrayCopy());
-        $this->assertEquals($this->session['auth'], ['uid' => 'abc', 'context' => 99, 'checksum' => 'xyz']);
+        $this->assertEquals($this->session['auth'], ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz']);
     }
 
     public function testClear()
     {
-        $this->session['auth'] = ['uid' => 'abc', 'context' => 99, 'checksum' => 'xyz'];
+        $this->session['auth'] = ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz'];
 
         $this->service->clear();
         $this->assertArrayNotHasKey('auth', $this->session->getArrayCopy());
@@ -64,7 +64,7 @@ class SessionObjectTest extends TestCase
 
     public function testGetInfoForRequest()
     {
-        $data = ['uid' => 'abc', 'context' => 99, 'checksum' => 'xyz'];
+        $data = ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz'];
 
         $requestSession = new \ArrayObject(['auth' => $data + ['other' => 'q']]);
         $service = $this->createServiceForRequest($requestSession);
@@ -77,18 +77,18 @@ class SessionObjectTest extends TestCase
 
     public function testPersistForRequest()
     {
-        $requestSession = new \ArrayObject(['uid' => 'abc', 'context' => 99, 'checksum' => 'xyz']);
+        $requestSession = new \ArrayObject(['user' => 'abc', 'context' => 99, 'checksum' => 'xyz']);
         $service = $this->createServiceForRequest($requestSession);
 
         $service->persist('abc', 99, 'xyz');
 
         $this->assertArrayHasKey('auth', $requestSession->getArrayCopy());
-        $this->assertEquals($requestSession['auth'], ['uid' => 'abc', 'context' => 99, 'checksum' => 'xyz']);
+        $this->assertEquals($requestSession['auth'], ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz']);
     }
 
     public function testClearForRequest()
     {
-        $requestSession = new \ArrayObject(['uid' => 'abc', 'context' => 99, 'checksum' => 'xyz']);
+        $requestSession = new \ArrayObject(['user' => 'abc', 'context' => 99, 'checksum' => 'xyz']);
         $service = $this->createServiceForRequest($requestSession);
 
         $service->clear();
@@ -98,7 +98,7 @@ class SessionObjectTest extends TestCase
 
     public function testForRequestWithoutSession()
     {
-        $data = ['uid' => 'abc', 'context' => 99, 'checksum' => 'xyz'];
+        $data = ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz'];
         $this->session['auth'] = $data + ['other' => 'q'];
 
         $request = $this->createMock(ServerRequestInterface::class);

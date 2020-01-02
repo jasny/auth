@@ -742,6 +742,19 @@ $middleware = new AuthMiddleware(/* ... */)
 $router->add($middleware);
 ```
 
+### For multiple requests
+
+Normally the Auth service should be initialized only once. Trying to initialize it a second time will throw an
+exception. For testing (and in some rare other cases), you want to the service to be able to handle multiple request,
+reading the session information each time. With `forMultipleRequests()` you get a copy of the service that allows
+re-initialization.
+
+```php
+if (getenv('APPLICATION_ENV') === 'tests') {
+    $auth = $auth->forMultipleRequests();
+}
+```
+
 ### Double pass middleware
 
 Some HTTP dispatchers accept double pass middlware rather than adhering to PSR-15. This is supported via the
