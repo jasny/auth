@@ -7,45 +7,46 @@ namespace Jasny\Auth\Session;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
- * Use PHP sessions to store auth session info.
+ * Use OOP abstracted sessions to store auth session info.
  */
-class PhpSession implements SessionInterface
+class SessionObject implements SessionInterface
 {
     protected string $key;
 
+    /** @var \ArrayAccess<string,mixed>|null */
+    protected \ArrayAccess $session;
+
     /**
-     * PhpSession constructor.
+     * SessionObject constructor.
      *
+     * @param \ArrayAccess<string,mixed>|null $session
      * @param string $key
-     * @param \ArrayAccess<string,mixed>|null $session  Omit to use $_SESSION
      */
-    public function __construct(string $key = 'auth')
+    public function __construct(\ArrayAccess $session, string $key = 'auth')
     {
+        $this->session = $session;
         $this->key = $key;
     }
 
     /**
-     * Unused, since the super global $_SESSION is use.
-     * This middleware doesn't start or modify the session based on the server request.
+     * Use the `session` attribute if it's an object that implements ArrayAccess.
      *
-     * @return $this
+     * @return self
      */
     public function forRequest(ServerRequestInterface $request): self
     {
-        return $this;
+        $session = $request->getAttribute('session');
+
+        if (!$session instanceof \ArrayAccess) {
+            return $this;
+        }
+
+        $copy = clone $this;
+        $copy->session = $session;
+
+        return $copy;
     }
 
-    /**
-     * Assert that there is an active session.
-     *
-     * @throws \RuntimeException if there is no active session
-     */
-    protected function assertSessionStarted(): void
-    {
-        if (session_status() !== \PHP_SESSION_ACTIVE) {
-            throw new \RuntimeException("Unable to use session for auth info: Session not started");
-        }
-    }
 
     /**
      * Get auth information from session.
@@ -54,9 +55,7 @@ class PhpSession implements SessionInterface
      */
     public function getInfo(): array
     {
-        $this->assertSessionStarted();
-
-        $data = $_SESSION[$this->key] ?? [];
+        $data = $this->session[$this->key] ?? [];
 
         return [
             'uid' => $data['uid'] ?? null,
@@ -74,9 +73,7 @@ class PhpSession implements SessionInterface
      */
     public function persist($uid, $context, ?string $checksum): void
     {
-        $this->assertSessionStarted();
-
-        $_SESSION[$this->key] = compact('uid', 'context', 'checksum');
+        $this->session[$this->key] = compact('uid', 'context', 'checksum');
     }
 
     /**
@@ -84,8 +81,8 @@ class PhpSession implements SessionInterface
      */
     public function clear(): void
     {
-        $this->assertSessionStarted();
-
-        unset($_SESSION[$this->key]);
+        if (isset($this->session[$this->key])) {
+            unset($this->session[$this->key]);
+        }
     }
 }

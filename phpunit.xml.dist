@@ -19,6 +19,12 @@
     </filter>
     <logging>
         <log type="coverage-text" target="php://stdout" showUncoveredFiles="true" />
-    </logging>    
+    </logging>
+    <php>
+        <ini name="session.use_cookies" value="0" />
+        <ini name="session.use_only_cookies" value="0" />
+        <ini name="session.use_trans_sid" value="0" />
+        <ini name="session.cache_limiter" value="" />
+    </php>
 </phpunit>
 
