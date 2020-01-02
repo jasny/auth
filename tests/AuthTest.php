@@ -39,14 +39,17 @@ class AuthTest extends TestCase
     public function setUp(): void
     {
         $this->authz = $this->createMock(Authz::class);
-        $this->session = $this->createMock(Session::class);
         $this->storage = $this->createMock(Storage::class);
         $this->confirmation = $this->createMock(Confirmation::class);
+        $this->session = $this->createMock(Session::class);
         $this->dispatcher = $this->createMock(EventDispatcher::class);
 
         $this->service = (new Auth($this->authz, $this->storage, $this->confirmation))
-            ->withSession($this->session)
             ->withEventDispatcher($this->dispatcher);
+
+        if (!in_array('initialize', $this->getGroups(), true)) {
+            $this->setPrivateProperty($this->service, 'session', $this->session);
+        }
     }
 
     /**
@@ -116,6 +119,9 @@ class AuthTest extends TestCase
     }
 
 
+    /**
+     * @group initialize
+     */
     public function testInitializeWithoutSession()
     {
         //<editor-fold desc="[prepare mocks]">
@@ -130,7 +136,7 @@ class AuthTest extends TestCase
 
         $this->assertFalse($this->service->isInitialized());
 
-        $this->service->initialize();
+        $this->service->initialize($this->session);
 
         $this->assertTrue($this->service->isInitialized());
         $this->assertSame($newAuthz, $this->service->authz());
@@ -140,13 +146,17 @@ class AuthTest extends TestCase
 
     /**
      * @depends testInitializeWithoutSession
+     * @group initialize
      */
     public function testInitializeTwice(Auth $service)
     {
         $this->expectException(\LogicException::class);
-        $service->initialize();
+        $service->initialize($this->session);
     }
 
+    /**
+     * @group initialize
+     */
     public function testInitializeWithUser()
     {
         $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
@@ -164,11 +174,14 @@ class AuthTest extends TestCase
 
         $newAuthz = $this->expectInitAuthz($user, null);
 
-        $this->service->initialize();
+        $this->service->initialize($this->session);
 
         $this->assertSame($newAuthz, $this->service->authz());
     }
 
+    /**
+     * @group initialize
+     */
     public function testInitializeWithUserAndContext()
     {
         $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
@@ -189,13 +202,38 @@ class AuthTest extends TestCase
 
         $newAuthz = $this->expectInitAuthz($user, $context);
 
-        $this->service->initialize();
+        $this->service->initialize($this->session);
 
         $this->assertSame($newAuthz, $this->service->authz());
-
-        return $this->service;
     }
 
+    /**
+     * @group initialize
+     */
+    public function testInitializeWithUserAndContextObjects()
+    {
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+        $context = $this->createConfiguredMock(Context::class, ['getAuthId' => 'foo']);
+
+        //<editor-fold desc="[prepare mocks]">
+        $this->session->expects($this->once())
+            ->method('getInfo')
+            ->willReturn(['uid' => $user, 'context' => $context, 'checksum' => 'abc']);
+
+        $this->storage->expects($this->never())->method('fetchUserById');
+        $this->storage->expects($this->never())->method('fetchContext');
+        //</editor-fold>
+
+        $newAuthz = $this->expectInitAuthz($user, $context);
+
+        $this->service->initialize($this->session);
+
+        $this->assertSame($newAuthz, $this->service->authz());
+    }
+
+    /**
+     * @group initialize
+     */
     public function testInitializeWithInvalidAuthChecksum()
     {
         $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'xyz']);
@@ -213,7 +251,7 @@ class AuthTest extends TestCase
 
         $newAuthz = $this->expectInitAuthz(null, null);
 
-        $this->service->initialize();
+        $this->service->initialize($this->session);
 
         $this->assertSame($newAuthz, $this->service->authz());
     }
@@ -229,6 +267,7 @@ class AuthTest extends TestCase
 
     /**
      * @dataProvider initalizedMethodProvider
+     * @group initialize
      */
     public function testAssertInitialized(string $method, ...$args)
     {
@@ -250,8 +289,6 @@ class AuthTest extends TestCase
         $this->authz->expects($this->once())->method('isLoggedIn')
             ->willReturn(true);
 
-        $this->setPrivateProperty($this->service, 'initialized', true);
-
         $this->assertTrue($this->service->isLoggedIn());
     }
 
@@ -260,8 +297,6 @@ class AuthTest extends TestCase
         $this->authz->expects($this->exactly(2))->method('is')
             ->withConsecutive(['foo'], ['bar'])
             ->willReturn(true, false);
-
-        $this->setPrivateProperty($this->service, 'initialized', true);
 
         $this->assertTrue($this->service->is('foo'));
         $this->assertFalse($this->service->is('bar'));
@@ -272,8 +307,6 @@ class AuthTest extends TestCase
         $user = $this->createMock(User::class);
         $this->authz->expects($this->once())->method('user')->willReturn($user);
 
-        $this->setPrivateProperty($this->service, 'initialized', true);
-
         $this->assertSame($user, $this->service->user());
     }
 
@@ -281,8 +314,6 @@ class AuthTest extends TestCase
     {
         $context = $this->createMock(Context::class);
         $this->authz->expects($this->once())->method('context')->willReturn($context);
-
-        $this->setPrivateProperty($this->service, 'initialized', true);
 
         $this->assertSame($context, $this->service->context());
     }
@@ -311,8 +342,6 @@ class AuthTest extends TestCase
 
         $this->session->expects($this->once())->method('persist')
             ->with(42, null, 'abc');
-
-        $this->setPrivateProperty($this->service, 'initialized', true);
         //</editor-fold>
 
         $this->service->loginAs($user);
@@ -339,8 +368,6 @@ class AuthTest extends TestCase
         $this->expectException(LoginException::class);
         $this->expectExceptionMessage('no good');
         $this->expectExceptionCode(LoginException::CANCELLED);
-
-        $this->setPrivateProperty($this->service, 'initialized', true);
         //</editor-fold>
 
         $this->service->loginAs($user);
@@ -355,8 +382,6 @@ class AuthTest extends TestCase
         $this->authz->expects($this->any())->method('user')->willReturn($user);
 
         $this->expectException(\LogicException::class);
-
-        $this->setPrivateProperty($this->service, 'initialized', true);
         //</editor-fold>
 
         $this->service->loginAs($user);
@@ -389,8 +414,6 @@ class AuthTest extends TestCase
 
         $this->session->expects($this->once())->method('persist')
             ->with(42, 'foo', 'abc');
-
-        $this->setPrivateProperty($this->service, 'initialized', true);
         //</editor-fold>
 
         $this->service->loginAs($user);
@@ -430,8 +453,6 @@ class AuthTest extends TestCase
 
         $this->session->expects($this->once())->method('persist')
             ->with(42, null, 'xyz');
-
-        $this->setPrivateProperty($this->service, 'initialized', true);
         //</editor-fold>
 
         $this->service->login('john', 'pwd');
@@ -455,8 +476,6 @@ class AuthTest extends TestCase
         $this->expectException(LoginException::class);
         $this->expectExceptionMessage('Invalid credentials');
         $this->expectExceptionCode(LoginException::INVALID_CREDENTIALS);
-
-        $this->setPrivateProperty($this->service, 'initialized', true);
         //</editor-fold>
 
         $this->service->login('john', 'pwd');
@@ -484,8 +503,6 @@ class AuthTest extends TestCase
         $this->authz->expects($this->never())->method('forUser');
         $this->authz->expects($this->never())->method('inContextOf');
         $this->session->expects($this->never())->method('persist');
-
-        $this->setPrivateProperty($this->service, 'initialized', true);
         //</editor-fold>
 
         $this->expectException(LoginException::class);
@@ -501,8 +518,6 @@ class AuthTest extends TestCase
         $user = $this->createMock(User::class);
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(true);
         $this->authz->expects($this->any())->method('user')->willReturn($user);
-
-        $this->setPrivateProperty($this->service, 'initialized', true);
         //</editor-fold>
 
         $this->expectException(\LogicException::class);
@@ -528,8 +543,6 @@ class AuthTest extends TestCase
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(true);
         $this->authz->expects($this->any())->method('user')->willReturn($user);
         $this->session->expects($this->once())->method('clear');
-
-        $this->setPrivateProperty($this->service, 'initialized', true);
         //</editor-fold>
 
         $newAuthz = $this->expectInitAuthz(null, null);
@@ -541,8 +554,6 @@ class AuthTest extends TestCase
 
     public function testLogoutTwice()
     {
-        $this->setPrivateProperty($this->service, 'initialized', true);
-
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
         $this->authz->expects($this->never())->method('user');
         $this->authz->expects($this->never())->method('forUser');
@@ -563,8 +574,6 @@ class AuthTest extends TestCase
 
         $this->session->expects($this->once())->method('persist')
             ->with(42, 'foo', 'abc');
-
-        $this->setPrivateProperty($this->service, 'initialized', true);
         //</editor-fold>
 
         $newAuthz = $this->expectSetAuthzContext($user, $context);
@@ -584,8 +593,6 @@ class AuthTest extends TestCase
 
         $this->session->expects($this->once())->method('persist')
             ->with(42, null, 'abc');
-
-        $this->setPrivateProperty($this->service, 'initialized', true);
         //</editor-fold>
 
         $newAuthz = $this->expectSetAuthzContext($user, null);
@@ -611,8 +618,6 @@ class AuthTest extends TestCase
         $this->session->expects($this->never())->method('clear');
         $this->session->expects($this->once())->method('persist')
             ->with(42, 'foo', 'abc');
-
-        $this->setPrivateProperty($this->service, 'initialized', true);
         //</editor-fold>
 
         $this->service->recalc();
@@ -628,8 +633,6 @@ class AuthTest extends TestCase
 
         $this->session->expects($this->once())->method('clear');
         $this->session->expects($this->never())->method('persist');
-
-        $this->setPrivateProperty($this->service, 'initialized', true);
         //</editor-fold>
 
         $this->service->recalc();
@@ -645,8 +648,6 @@ class AuthTest extends TestCase
             ->with($user)
             ->willReturn($newAuthz);
 
-        $this->setPrivateProperty($this->service, 'initialized', true);
-
         $this->assertSame($newAuthz, $this->service->forUser($user));
         $this->assertSame($this->authz, $this->service->authz()); // Not modified
     }
@@ -659,8 +660,6 @@ class AuthTest extends TestCase
         $this->authz->expects($this->once())->method('inContextOf')
             ->with($context)
             ->willReturn($newAuthz);
-
-        $this->setPrivateProperty($this->service, 'initialized', true);
 
         $this->assertSame($newAuthz, $this->service->inContextOf($context));
         $this->assertSame($this->authz, $this->service->authz()); // Not modified

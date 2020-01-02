@@ -4,7 +4,6 @@ namespace Jasny\Auth\Tests\Session;
 
 use Jasny\Auth\Session\PhpSession;
 use PHPUnit\Framework\TestCase;
-use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * @covers \Jasny\Auth\Session\PhpSession
@@ -24,13 +23,6 @@ class PhpSessionTest extends TestCase
         if (session_status() === \PHP_SESSION_ACTIVE) {
             session_destroy();
         }
-    }
-
-
-    public function testForRequest()
-    {
-        $request = $this->createMock(ServerRequestInterface::class);
-        $this->assertSame($this->service, $this->service->forRequest($request));
     }
 
 

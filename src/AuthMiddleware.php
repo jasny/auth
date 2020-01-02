@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Jasny\Auth;
 
+use Improved as i;
 use Improved\IteratorPipeline\Pipeline;
 use Jasny\Auth\AuthzInterface as Authz;
+use Jasny\Auth\Session\SessionInterface;
 use Psr\Http\Message\ServerRequestInterface as ServerRequest;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ResponseFactoryInterface as ResponseFactory;
@@ -20,20 +22,43 @@ class AuthMiddleware implements MiddlewareInterface
     protected Authz $auth;
     protected ?ResponseFactory $responseFactory = null;
 
-    /** Function to get the required role from the request. */
+    /**
+     * @var null|\Closure(ServerRequest $request):SessionInterface
+     */
+    protected ?\Closure $getSession;
+
+    /**
+     * @var \Closure(ServerRequest $request):mixed
+     * Function to get the required role from the request.
+     */
     protected \Closure $getRequiredRole;
 
     /**
      * Class constructor
      *
-     * @param Authz    $auth
-     * @param callable $getRequiredRole
+     * @param Authz                                  $auth
+     * @param callable(ServerRequest $request):mixed $getRequiredRole
+     * @param ResponseFactory|null                   $responseFactory
      */
     public function __construct(Authz $auth, callable $getRequiredRole, ?ResponseFactory $responseFactory = null)
     {
         $this->auth = $auth;
         $this->responseFactory = $responseFactory;
         $this->getRequiredRole = \Closure::fromCallable($getRequiredRole);
+    }
+
+    /**
+     * Get a copy of this middleware with a different session service.
+     *
+     * @param callable(ServerRequest $request):SessionInterface $getSession
+     * @return static
+     */
+    public function withSession(callable $getSession): self
+    {
+        $copy = clone $this;
+        $copy->getSession = \Closure::fromCallable($getSession);
+
+        return $copy;
     }
 
     /**
@@ -45,7 +70,7 @@ class AuthMiddleware implements MiddlewareInterface
      */
     public function process(ServerRequest $request, RequestHandler $handler): Response
     {
-        $this->initialize();
+        $this->initialize($request);
 
         if (!$this->isAllowed($request)) {
             return $this->forbidden($request);
@@ -62,7 +87,7 @@ class AuthMiddleware implements MiddlewareInterface
     public function asDoublePass(): callable
     {
         return function (ServerRequest $request, Response $response, callable $next): Response {
-            $this->initialize();
+            $this->initialize($request);
 
             if (!$this->isAllowed($request)) {
                 return $this->forbidden($request, $response);
@@ -75,11 +100,33 @@ class AuthMiddleware implements MiddlewareInterface
     /**
      * Initialize the auth service.
      */
-    protected function initialize(): void
+    protected function initialize(ServerRequest $request): void
     {
-        if ($this->auth instanceof Auth && !$this->auth->isInitialized()) {
-            $this->auth->initialize();
+        if (!($this->auth instanceof Auth) || $this->auth->isInitialized()) {
+            if (isset($this->getSession)) {
+                throw new \LogicException("Session couldn't be used; auth already initialized");
+            }
+            return;
         }
+
+        $session = $this->getSession($request);
+        $this->auth->initialize($session);
+    }
+
+    /**
+     * Return a session service for the server request.
+     */
+    protected function getSession(ServerRequest $request): ?SessionInterface
+    {
+        if (!isset($this->getSession)) {
+            return null;
+        }
+
+        return i\type_check(
+            ($this->getSession)($request),
+            SessionInterface::class,
+            new \UnexpectedValueException()
+        );
     }
 
     /**

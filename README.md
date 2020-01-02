@@ -585,13 +585,91 @@ $updatedAuthz = $authz->recalc();
 $updatedAuthz->is('admin'); // returns false
 ```
 
+Sessions
+---
+
+By default, the super global `$_SESSION` is used. Authentication info is stored under `$_SESSION['auth']`. To change the
+way the information is stored, pass a session service when initializing.
+
+```php
+use Jasny\Auth\Session\PhpSession;
+
+session_start();
+$auth->initialize(new PhpSession('userinfo'));
+``` 
+
+### Session object
+
+Use an object with `ArrayAccess` (like an `ArrayObject`) to store auth session information. Some libraries, like
+[Jasny Session Middleware](https://github.com/jasny/session-middleware), support abstracting sessions via an object.
+This makes it easier to test stateful applications.
+
+```php
+use Jasny\Auth\Session\SessionObject;
+
+$session = new ArrayObject(['auth' => ['uid' => 123]]); // Session with test data
+$auth->initialize(new SessionObject($session));
+``` 
+
+For testing it's possible to set `UserInterface` and `ContextInterface` objects as session information instead of
+ids.
+
+
+```php
+use Jasny\Auth\Session\SessionObject;
+
+$loggedInUser = new User('123', 'Arnold');
+$currentContext = new Team('xyz');
+
+$session = new ArrayObject(['auth' => ['uid' => $loggedInUser, 'context' => $currentContext]]);
+$auth->initialize(new SessionObject($session));
+``` 
+
+### Bearer authentication
+
+The Auth service can also be used for REST APIs that use bearer authentication rather than stateful sessions. The HTTP
+request should contain header
+
+    Authorization: Bearer <token> 
+
+```php
+use Jasny\Auth\Session\BearerAuth;
+
+$auth->initialize(new BearerAuth());
+```
+
+For this type of authentication it's not possible to login or logout. Calling those methods will throw a
+`LogicException`. It's also not possible to change the context. It should be automatically determined using
+`AuthStorage::getContextForUser()`. Alternatively `inContextOf()` can be used.  
+
+The `BearerAuth` constructor optionally takes a PSR-7 server request as first argument and an id format as second
+argument. The format is used in `sprintf` to create the id from the token.
+
+```php
+class ApiKey implements Auth\UserInterface
+{
+    public function getAuthId()
+    {
+        return "key:{$this->token}";
+    }
+}
+
+new BearerAuth($serverRequest, "apikey:%s");
+```
+
 Access control (middleware)
 ---
 
 You can apply access control manually using the `is()` method. Alteratively, if you're using a PSR-7 compatible router,
 you can use middleware. `AuthMiddleware` implements [PSR-15 `MiddlewareInterface`](https://www.php-fig.org/psr/psr-15/).
 
-The constructor takes a callback, which should get the required authorization role / level from the request.
+Pass a [PSR-17 `ResponseFactory`](https://www.php-fig.org/psr/psr-17/#22-responsefactoryinterface) as last argument.
+It's used to create a `401 Unauthorized` or `403 Forbidden` response. 
+
+### Authorization
+
+The constructor takes a callback as second argument, which should get the required authorization role / level from the
+request.
 
 The callback may return `null` to indicate that anybody can visit the page. Returning `true` means a the request will
 only be handled if a user is logged in, and `false` means that the user may not be logged in.
@@ -600,17 +678,21 @@ only be handled if a user is logged in, and `false` means that the user may not 
 use Jasny\Auth\AuthMiddleware;
 use Psr\Http\Message\ServerRequestInterface ;
 
-$middleware = new AuthMiddleware($auth, function (ServerRequestInterface $request) {
-    if (strpos($request->getUri()->getPath(), '/account/') === 0) {
-        return true; // Pages under `/account/` are only available if logged in
-    }
+$middleware = new AuthMiddleware(
+    $auth,
+    function (ServerRequestInterface $request) {
+        if (strpos($request->getUri()->getPath(), '/account/') === 0) {
+            return true; // Pages under `/account/` are only available if logged in
+        }
+        
+        if ($request->getUri()->getPath() === '/signup') {
+            return false; // Don't signup if you're already logged in
+        }
     
-    if ($request->getUri()->getPath() === '/signup') {
-        return false; // Don't signup if you're already logged in
-    }
-
-    return null;
-});
+        return null;
+    },
+    $responseFactory,
+);
 
 $router->add($middleware);
 ```
@@ -618,19 +700,61 @@ $router->add($middleware);
 If the callback returns a string, the middleware will check if the user is authorized for that role.
 
 ```php
-$auth = new Auth(); // Implements the Jasny\Authz interface
+$middleware = new AuthMiddleware(
+    $auth,
+    function (ServerRequestInterface $request) {
+        return $request->getAttribute('route.auth');
+    },
+    $responseFactory,
+);
 
-$router->add($auth->asMiddleware(function(ServerRequest $request) {
-    return $request->getAttribute('route.auth');
-}));
+$router->add($middleware);
 ```
 
 If an array of strings is returned, the user should be authorized for at least one of the roles. So returning 
-`['admin', 'provider']` means the user needs to be an admin OR provider.
+`['admin', 'provider']` means the user needs to be an admin _OR_ provider.
 
-#### Initialization
+### Initialization
 
-`AuthMiddleware` will automatically initialize `Auth` if required.
+The middleware will initialize the auth service. To use a different [session service](#sessions) than `PhpSessions`,
+pass a callback to `withSession()`. The callback takes a PSR-7 `ServerRequestInterface` object and must return a
+session service.
+
+```php
+$middleware = new AuthMiddleware(/* ... */)
+    ->withSession(fn(ServerRequestInterface $request) => new BearerAuth($request));
+
+$router->add($middleware);
+```
+
+A common case is to choose between bearer auth (for the API) and sessions based on the path.
+
+```php
+$middleware = new AuthMiddleware(/* ... */)
+    ->withSession(function (ServerRequestInterface $request) {
+        $isApi = strpos($request->getUri()->getPath(), '/api/') === 0);
+
+        return $isApi
+            ? new BearerAuth($request)
+            : new SessionObject($request->getAttribute('session', new ArrayObject())); 
+    });
+
+$router->add($middleware);
+```
+
+### Double pass middleware
+
+Some HTTP dispatchers accept double pass middlware rather than adhering to PSR-15. This is supported via the
+`asDoublePass()` method. In this case, the request factory may be omitted from the constructor.
+
+```php
+$middleware = new AuthMiddleware(/* ... */)
+    ->withSession(function (ServerRequestInterface $request) {
+        return new BearerAuth();
+    });
+
+$router->add($middleware->asDoublePass());
+```
 
 Confirmation
 ---

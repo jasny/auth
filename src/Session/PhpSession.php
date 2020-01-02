@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Jasny\Auth\Session;
 
-use Psr\Http\Message\ServerRequestInterface;
-
 /**
  * Use PHP sessions to store auth session info.
  */
@@ -14,25 +12,13 @@ class PhpSession implements SessionInterface
     protected string $key;
 
     /**
-     * PhpSession constructor.
+     * Service constructor.
      *
      * @param string $key
-     * @param \ArrayAccess<string,mixed>|null $session  Omit to use $_SESSION
      */
     public function __construct(string $key = 'auth')
     {
         $this->key = $key;
-    }
-
-    /**
-     * Unused, since the super global $_SESSION is use.
-     * This middleware doesn't start or modify the session based on the server request.
-     *
-     * @return $this
-     */
-    public function forRequest(ServerRequestInterface $request): self
-    {
-        return $this;
     }
 
     /**
@@ -50,7 +36,7 @@ class PhpSession implements SessionInterface
     /**
      * Get auth information from session.
      *
-     * @return array{uid:string|int|null,context:mixed,checksum:string|null}
+     * @return array{uid:mixed,context:mixed,checksum:string|null}
      */
     public function getInfo(): array
     {

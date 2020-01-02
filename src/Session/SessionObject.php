@@ -13,14 +13,14 @@ class SessionObject implements SessionInterface
 {
     protected string $key;
 
-    /** @var \ArrayAccess<string,mixed>|null */
+    /** @var \ArrayAccess<string,mixed> */
     protected \ArrayAccess $session;
 
     /**
-     * SessionObject constructor.
+     * Service constructor.
      *
-     * @param \ArrayAccess<string,mixed>|null $session
-     * @param string $key
+     * @param \ArrayAccess<string,mixed> $session
+     * @param string                     $key
      */
     public function __construct(\ArrayAccess $session, string $key = 'auth')
     {
@@ -51,7 +51,7 @@ class SessionObject implements SessionInterface
     /**
      * Get auth information from session.
      *
-     * @return array{uid:string|int|null,context:mixed,checksum:string|null}
+     * @return array{uid:mixed,context:mixed,checksum:string|null}
      */
     public function getInfo(): array
     {

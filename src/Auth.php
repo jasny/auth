@@ -33,9 +33,6 @@ class Auth implements Authz
     protected Confirmation $confirmation;
     protected EventDispatcher $dispatcher;
 
-    /** The service can't be used before it's initialized */
-    protected bool $initialized = false;
-
     /**
      * Auth constructor.
      */
@@ -46,16 +43,7 @@ class Auth implements Authz
         $this->confirmation = $confirmation ?? new NoConfirmation();
 
         // Set default services
-        $this->session = new PhpSession();
         $this->dispatcher = self::dummyDispatcher();
-    }
-
-    /**
-     * Get a copy with a different session manager.
-     */
-    public function withSession(Session $session): self
-    {
-        return $this->withProperty('session', $session);
     }
 
     /**
@@ -70,26 +58,41 @@ class Auth implements Authz
     /**
      * Initialize the service using session information.
      */
-    public function initialize(): void
+    public function initialize(?Session $session = null): void
     {
-        if ($this->initialized) {
+        if ($this->isInitialized()) {
             throw new \LogicException("Auth service is already initialized");
         }
 
-        ['uid' => $uid, 'context' => $cid, 'checksum' => $checksum] = $this->session->getInfo();
+        $this->session = $session ?? new PhpSession();
 
-        $user = $uid !== null ? $this->storage->fetchUserById($uid) : null;
-        $context = $cid !== null
-            ? $this->storage->fetchContext($cid)
-            : ($user !== null ? $this->storage->getContextForUser($user) : null);
-
-        if ($user !== null && $user->getAuthChecksum() !== $checksum) {
-            $user = null;
-            $context = null;
-        }
+        ['user' => $user, 'context' => $context] = $this->getInfoFromSession();
 
         $this->authz = $this->authz->forUser($user)->inContextOf($context);
-        $this->initialized = true;
+    }
+
+    /**
+     * Get user and context from session, loading objects from storage.
+     *
+     * @return array{user:User|null,context:Context|null}
+     */
+    protected function getInfoFromSession()
+    {
+        ['uid' => $uid, 'context' => $cid, 'checksum' => $checksum] = $this->session->getInfo();
+
+        $user = $uid !== null
+            ? ($uid instanceof User ? $uid : $this->storage->fetchUserById($uid))
+            : null;
+
+        if ($user !== null && $user->getAuthChecksum() !== $checksum) {
+            return ['user' => null, 'context' => null];
+        }
+
+        $context = $cid !== null
+            ? ($cid instanceof Context ? $cid : $this->storage->fetchContext($cid))
+            : ($user !== null ? $this->storage->getContextForUser($user) : null);
+
+        return ['user' => $user, 'context' => $context];
     }
 
     /**
@@ -97,7 +100,7 @@ class Auth implements Authz
      */
     public function isInitialized(): bool
     {
-        return $this->initialized;
+        return isset($this->session);
     }
 
     /**
@@ -107,7 +110,7 @@ class Auth implements Authz
      */
     protected function assertInitialized(): void
     {
-        if (!$this->initialized) {
+        if (!$this->isInitialized()) {
             throw new \LogicException("Auth needs to be initialized before use");
         }
     }

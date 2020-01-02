@@ -4,37 +4,26 @@ declare(strict_types=1);
 
 namespace Jasny\Auth\Tests\Session;
 
-use Jasny\Auth\Session\Bearer;
+use Jasny\Auth\Session\BearerAuth;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
- * @covers \Jasny\Auth\Session\Bearer
+ * @covers \Jasny\Auth\Session\BearerAuth
  */
-class BearerTest extends TestCase
+class BearerAuthTest extends TestCase
 {
-    protected Bearer $service;
-
-    public function setUp(): void
+    protected function createService(string $header = ''): BearerAuth
     {
-        $this->service = new Bearer();
-    }
+        $request = $this->createConfiguredMock(ServerRequestInterface::class, ['getHeaderLine' => $header]);
 
-    protected function createServiceForRequest(string $header)
-    {
-        $request = $this->createMock(ServerRequestInterface::class);
-        $request->expects($this->once())->method('getHeaderLine')
-            ->with('Authorization')
-            ->willReturn($header);
-
-        return $this->service->forRequest($request);
+        return new BearerAuth($request);
     }
 
 
     public function testGetInfo()
     {
-        $service = $this->createServiceForRequest('Bearer foo');
-        $this->assertNotSame($this->service, $service);
+        $service = $this->createService('Bearer foo');
 
         $info = $service->getInfo();
         $this->assertEquals(['uid' => 'foo', 'context' => null, 'checksum' => ''], $info);
@@ -42,8 +31,7 @@ class BearerTest extends TestCase
 
     public function testGetInfoDefault()
     {
-        $service = $this->createServiceForRequest('');
-        $this->assertNotSame($this->service, $service);
+        $service = $this->createService('');
 
         $info = $service->getInfo();
         $this->assertEquals(['uid' => null, 'context' => null, 'checksum' => ''], $info);
@@ -51,8 +39,7 @@ class BearerTest extends TestCase
 
     public function testGetInfoWithBasicAuth()
     {
-        $service = $this->createServiceForRequest('Basic QWxhZGRpbjpPcGVuU2VzYW1l');
-        $this->assertNotSame($this->service, $service);
+        $service = $this->createService('Basic QWxhZGRpbjpPcGVuU2VzYW1l');
 
         $info = $service->getInfo();
         $this->assertEquals(['uid' => null, 'context' => null, 'checksum' => ''], $info);
@@ -61,7 +48,7 @@ class BearerTest extends TestCase
     public function testGetInfoWithoutRequest()
     {
         $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer xyz';
-        $service = new Bearer();
+        $service = new BearerAuth();
 
         $info = $service->getInfo();
         $this->assertEquals(['uid' => 'xyz', 'context' => null, 'checksum' => ''], $info);
@@ -71,12 +58,12 @@ class BearerTest extends TestCase
     public function testPersist()
     {
         $this->expectException(\LogicException::class);
-        $this->service->persist('foo', null, '');
+        $this->createService()->persist('foo', null, '');
     }
 
     public function testClear()
     {
         $this->expectException(\LogicException::class);
-        $this->service->clear();
+        $this->createService()->clear();
     }
 }

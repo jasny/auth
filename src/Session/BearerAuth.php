@@ -9,31 +9,20 @@ use Psr\Http\Message\ServerRequestInterface;
 /**
  * Get auth info from Bearer Authorization header
  */
-class Bearer implements SessionInterface
+class BearerAuth implements SessionInterface
 {
     protected string $idFormat;
     protected string $header;
 
     /**
-     * Bearer constructor.
-     *
-     * @param string $idPrefix
+     * Service constructor.
      */
-    public function __construct(string $idFormat = '%s')
+    public function __construct(?ServerRequestInterface $request = null, string $idFormat = '%s')
     {
         $this->idFormat = $idFormat;
-        $this->header = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function forRequest(ServerRequestInterface $request): SessionInterface
-    {
-        $copy = clone $this;
-        $copy->header = $request->getHeaderLine('Authorization');
-
-        return $copy;
+        $this->header = isset($request)
+            ? ($request->getHeaderLine('Authorization') ?? '')
+            : ($_SERVER['HTTP_AUTHORIZATION'] ?? '');
     }
 
     /**
@@ -43,16 +32,16 @@ class Bearer implements SessionInterface
      */
     public function getInfo(): array
     {
-        $key = stripos($this->header, 'bearer ') === 0
+        $token = stripos($this->header, 'bearer ') === 0
             ? trim(substr($this->header, 6))
             : '';
 
-        if ($key === '') {
+        if ($token === '') {
             return ['uid' => null, 'context' => null, 'checksum' => null];
         }
 
         return [
-            'uid' => sprintf($this->idFormat, $key),
+            'uid' => sprintf($this->idFormat, $token),
             'context' => null,
             'checksum' => '',
         ];
