@@ -72,6 +72,16 @@ class Auth implements Authz
     }
 
     /**
+     * Set the auth service to the uninitialized state.
+     * This is only intended for the testing environment.
+     */
+    public function reset(): void
+    {
+        $this->authz = $this->authz->forUser(null)->inContextOf(null);
+        unset($this->session);
+    }
+
+    /**
      * Get user and context from session, loading objects from storage.
      *
      * @return array{user:User|null,context:Context|null}

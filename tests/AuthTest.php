@@ -275,6 +275,36 @@ class AuthTest extends TestCase
         $this->service->{$method}(...$args);
     }
 
+    public function testReset()
+    {
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+
+        //<editor-fold desc="[prepare mocks]">
+        $session = $this->createMock(Session::class);
+
+        $session->expects($this->once())
+            ->method('getInfo')
+            ->willReturn(['uid' => 42, 'context' => null, 'checksum' => 'abc']);
+
+        $this->storage->expects($this->once())->method('fetchUserById')
+            ->with(42)
+            ->willReturn($user);
+
+        $this->storage->expects($this->never())->method('fetchContext');
+        //</editor-fold>
+
+        try {
+            $this->service->initialize($session);
+            $this->fail("Should have thrown a LogicException before reset");
+        } catch (\LogicException $exception) {
+            // Ok
+        }
+
+        $this->service->reset();
+
+        $this->service->initialize($session);
+    }
+
 
     public function testGetAvailableRoles()
     {
