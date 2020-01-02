@@ -102,9 +102,9 @@ class AuthMiddleware implements MiddlewareInterface
      */
     protected function initialize(ServerRequest $request): void
     {
-        if (!($this->auth instanceof Auth) || $this->auth->isInitialized()) {
+        if (!$this->auth instanceof Auth) {
             if (isset($this->getSession)) {
-                throw new \LogicException("Session couldn't be used; auth already initialized");
+                throw new \LogicException("Session can't be used for immutable authz service");
             }
             return;
         }

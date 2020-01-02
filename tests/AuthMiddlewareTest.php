@@ -209,33 +209,7 @@ class AuthMiddlewareTest extends TestCase
     public function testInitialize()
     {
         $auth = $this->createMock(Auth::class);
-        $auth->expects($this->once())->method('isInitialized')->willReturn(false);
         $auth->expects($this->once())->method('initialize');
-
-        $response = $this->createMock(Response::class);
-
-        $request = $this->createMock(ServerRequest::class);
-        $request->expects($this->once())->method('getAttribute')->with('auth')->willReturn(null);
-
-        $middleware = new AuthMiddleware(
-            $auth,
-            fn(ServerRequest $request) => $request->getAttribute('auth'),
-            $this->responseFactory
-        );
-
-        $handler = $this->createMock(RequestHandler::class);
-        $handler->expects($this->once())->method('handle')
-            ->with($this->identicalTo($request))
-            ->willReturn($response);
-
-        $middleware->process($request, $handler);
-    }
-
-    public function testInitializeTwice()
-    {
-        $auth = $this->createMock(Auth::class);
-        $auth->expects($this->once())->method('isInitialized')->willReturn(true);
-        $auth->expects($this->never())->method('initialize');
 
         $response = $this->createMock(Response::class);
 
@@ -261,7 +235,6 @@ class AuthMiddlewareTest extends TestCase
         $session = $this->createMock(SessionInterface::class);
 
         $auth = $this->createMock(Auth::class);
-        $auth->expects($this->once())->method('isInitialized')->willReturn(false);
         $auth->expects($this->once())->method('initialize')
             ->with($this->identicalTo($session));
 
@@ -289,7 +262,6 @@ class AuthMiddlewareTest extends TestCase
     public function testInitializeWithBadSessionCallback()
     {
         $auth = $this->createMock(Auth::class);
-        $auth->expects($this->once())->method('isInitialized')->willReturn(false);
         $auth->expects($this->never())->method('initialize');
 
         $request = $this->createMock(ServerRequest::class);
@@ -310,21 +282,11 @@ class AuthMiddlewareTest extends TestCase
         $middleware->process($request, $handler);
     }
 
-
-    public function authInitializedProvider()
-    {
-        return [
-            [$this->createConfiguredMock(Auth::class, ['isInitialized' => true])],
-            [$this->createMock(Authz::class)],
-        ];
-    }
-
-    /**
-     * @dataProvider authInitializedProvider
-     */
-    public function testInitializeCantUseSession(Authz $auth)
+    public function testInitializeCantUseSession()
     {
         $request = $this->createMock(ServerRequest::class);
+
+        $auth = $this->createMock(Authz::class);
 
         $middleware = (new AuthMiddleware(
             $auth,
@@ -336,7 +298,7 @@ class AuthMiddlewareTest extends TestCase
         $handler->expects($this->never())->method('handle');
 
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage("Session couldn't be used; auth already initialized");
+        $this->expectExceptionMessage("Session can't be used for immutable authz service");
 
         $middleware->process($request, $handler);
     }

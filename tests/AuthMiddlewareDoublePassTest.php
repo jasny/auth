@@ -5,7 +5,6 @@ namespace Jasny\Auth\Tests;
 use Jasny\Auth\Auth;
 use Jasny\Auth\AuthzInterface as Authz;
 use Jasny\Auth\AuthMiddleware;
-use Jasny\Auth\UserInterface as User;
 use Jasny\PHPUnit\CallbackMockTrait;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -195,7 +194,6 @@ class AuthMiddlewareDoublePassTest extends TestCase
     public function testInitialize()
     {
         $auth = $this->createMock(Auth::class);
-        $auth->expects($this->once())->method('isInitialized')->willReturn(false);
         $auth->expects($this->once())->method('initialize');
 
         $response = $this->createMock(Response::class);
