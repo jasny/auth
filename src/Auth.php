@@ -100,13 +100,13 @@ class Auth implements Authz
             ? ($uid instanceof User ? $uid : $this->storage->fetchUserById($uid))
             : null;
 
-        if ($user !== null && $user->getAuthChecksum() !== $checksum) {
+        if ($user === null || $user->getAuthChecksum() !== (string)$checksum) {
             return ['user' => null, 'context' => null];
         }
 
         $context = $cid !== null
             ? ($cid instanceof Context ? $cid : $this->storage->fetchContext($cid))
-            : ($user !== null ? $this->storage->getContextForUser($user) : null);
+            : $this->storage->getContextForUser($user);
 
         return ['user' => $user, 'context' => $context];
     }
