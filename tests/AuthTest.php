@@ -126,6 +126,20 @@ class AuthTest extends TestCase
     }
 
 
+    public function testWithLogger()
+    {
+        $this->assertSame($this->logger, $this->service->getLogger());
+
+        $newLogger = $this->createMock(LoggerInterface::class);
+        $newService = $this->service->withLogger($newLogger);
+
+        $this->assertInstanceOf(Auth::class, $newService);
+        $this->assertSame($newLogger, $newService->getLogger());
+
+        $this->assertNotSame($this->logger, $newLogger);
+        $this->assertSame($this->logger, $this->service->getLogger());
+    }
+
     /**
      * @group initialize
      */
