@@ -1,9 +1,11 @@
 {
     "name": "jasny/auth",
     "description": "Authentication and authorization",
-    "keywords": ["auth"],
-    "license": "MIT",
+    "keywords": [
+        "auth"
+    ],
     "homepage": "http://jasny.github.com/auth",
+    "license": "MIT",
     "authors": [
         {
             "name": "Arnold Daniels",
@@ -11,24 +13,30 @@
             "homepage": "http://www.jasny.net"
         }
     ],
-    "support": {
-        "issues": "https://github.com/jasny/auth/issues",
-        "source": "https://github.com/jasny/auth"
-    },
     "require": {
         "php": ">=7.4.0",
         "ext-ctype": "*",
-        "psr/http-message": "^1.0",
-        "psr/http-server-middleware": "^1.0",
-        "psr/event-dispatcher": "^1.0",
-        "psr/http-factory": "^1.0",
         "improved/iterable": "^0.1.4",
         "jasny/immutable": "^2.0",
-        "nesbot/carbon": "^2.27"
+        "nesbot/carbon": "^2.27",
+        "psr/event-dispatcher": "^1.0",
+        "psr/http-factory": "^1.0",
+        "psr/http-message": "^1.0",
+        "psr/http-server-middleware": "^1.0",
+        "psr/log": "^1.1",
+        "unreal4u/dummy-logger": "^1.0"
     },
     "require-dev": {
-        "jasny/php-code-quality": "~2.6.0",
-        "hashids/hashids": "~2.0.0"
+        "hashids/hashids": "~2.0.0",
+        "jasny/php-code-quality": "~2.6.0"
+    },
+    "suggest": {
+        "hashids/hashids": "For generating confirmation tokens"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true
     },
     "autoload": {
         "psr-4": {
@@ -40,9 +48,8 @@
             "Jasny\\Auth\\Tests\\": "tests/"
         }
     },
-    "suggest": {
-        "hashids/hashids": "For generating confirmation tokens"
-    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "scripts": {
         "test": [
             "phpstan analyse",
@@ -50,11 +57,8 @@
             "phpcs -p src"
         ]
     },
-    "config": {
-        "preferred-install": "dist",
-        "sort-packages": true,
-        "optimize-autoloader": true
-    },
-    "minimum-stability": "dev",
-    "prefer-stable": true
+    "support": {
+        "issues": "https://github.com/jasny/auth/issues",
+        "source": "https://github.com/jasny/auth"
+    }
 }

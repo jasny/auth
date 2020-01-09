@@ -13,7 +13,9 @@ use Jasny\Auth\Session\SessionInterface as Session;
 use Jasny\Auth\StorageInterface as Storage;
 use Jasny\Auth\UserInterface as User;
 use Jasny\Immutable;
+use unreal4u\Dummy\Logger as DummyLogger;
 use Psr\EventDispatcher\EventDispatcherInterface as EventDispatcher;
+use Psr\Log\LoggerInterface as Logger;
 
 /**
  * Authentication and authorization.
@@ -21,6 +23,7 @@ use Psr\EventDispatcher\EventDispatcherInterface as EventDispatcher;
 class Auth implements Authz
 {
     use Immutable\With;
+    use Immutable\NoDynamicProperties;
 
     /**
      * Stateful authz service.
@@ -31,7 +34,9 @@ class Auth implements Authz
     protected Session $session;
     protected Storage $storage;
     protected Confirmation $confirmation;
+
     protected EventDispatcher $dispatcher;
+    protected Logger $logger;
 
     /** Allow service to be re-initialized */
     protected bool $forMultipleRequests = false;
@@ -47,6 +52,7 @@ class Auth implements Authz
 
         // Set default services
         $this->dispatcher = self::dummyDispatcher();
+        $this->logger = new DummyLogger();
     }
 
     /**
@@ -65,6 +71,22 @@ class Auth implements Authz
     public function withEventDispatcher(EventDispatcher $dispatcher): self
     {
         return $this->withProperty('dispatcher', $dispatcher);
+    }
+
+    /**
+     * Get a copy with a logger.
+     */
+    public function withLogger(Logger $logger): self
+    {
+        return $this->withProperty('logger', $logger);
+    }
+
+    /**
+     * Get the logger used for this service.
+     */
+    public function getLogger(): Logger
+    {
+        return $this->logger;
     }
 
 
@@ -100,7 +122,14 @@ class Auth implements Authz
             ? ($uid instanceof User ? $uid : $this->storage->fetchUserById($uid))
             : null;
 
-        if ($user === null || $user->getAuthChecksum() !== (string)$checksum) {
+        if ($user === null) {
+            return ['user' => null, 'context' => null];
+        }
+
+        if ($user->getAuthChecksum() !== (string)$checksum) {
+            $authId = $user->getAuthId();
+            $this->logger->notice("Ignoring auth info from session: invalid checksum", ['user' => $authId]);
+
             return ['user' => null, 'context' => null];
         }
 
@@ -226,6 +255,7 @@ class Auth implements Authz
         $user = $this->storage->fetchUserByUsername($username);
 
         if ($user === null || !$user->verifyPassword($password)) {
+            $this->logger->debug("Login failed: invalid credentials", ['username' => $username]);
             throw new LoginException('Invalid credentials', LoginException::INVALID_CREDENTIALS);
         }
 
@@ -243,6 +273,7 @@ class Auth implements Authz
         $this->dispatcher->dispatch($event);
 
         if ($event->isCancelled()) {
+            $this->logger->info("Login failed: " . $event->getCancellationReason(), ['user' => $user->getAuthId()]);
             throw new LoginException($event->getCancellationReason(), LoginException::CANCELLED);
         }
 
@@ -255,6 +286,8 @@ class Auth implements Authz
         }
 
         $this->updateSession();
+
+        $this->logger->info("Login successful", ['user' => $user->getAuthId()]);
     }
 
     /**
@@ -273,6 +306,7 @@ class Auth implements Authz
         $this->authz = $this->authz->forUser(null)->inContextOf(null);
         $this->updateSession();
 
+        $this->logger->debug("Logout", ['user' => $user->getAuthId()]);
         $this->dispatcher->dispatch(new Event\Logout($this, $user));
     }
 
@@ -352,7 +386,10 @@ class Auth implements Authz
      */
     public function confirm(string $subject): Confirmation
     {
-        return $this->confirmation->withStorage($this->storage)->withSubject($subject);
+        return $this->confirmation
+            ->withStorage($this->storage)
+            ->withLogger($this->logger)
+            ->withSubject($subject);
     }
 
 

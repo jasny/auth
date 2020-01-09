@@ -6,6 +6,7 @@ namespace Jasny\Auth\Confirmation;
 
 use Jasny\Auth\StorageInterface as Storage;
 use Jasny\Auth\UserInterface as User;
+use Psr\Log\LoggerInterface as Logger;
 
 /**
  * Generate and verify confirmation tokens.
@@ -19,6 +20,14 @@ interface ConfirmationInterface
      * @return static
      */
     public function withStorage(Storage $storage);
+
+    /**
+     * Get copy with logger.
+     *
+     * @param Logger $logger
+     * @return static
+     */
+    public function withLogger(Logger $logger);
 
     /**
      * Create a copy of this service with a specific subject.

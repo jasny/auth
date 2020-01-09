@@ -6,6 +6,7 @@ namespace Jasny\Auth\Confirmation;
 
 use Jasny\Auth\StorageInterface as Storage;
 use Jasny\Auth\UserInterface as User;
+use Psr\Log\LoggerInterface as Logger;
 
 /**
  * No support for confirmation tokens.
@@ -13,10 +14,7 @@ use Jasny\Auth\UserInterface as User;
 class NoConfirmation implements ConfirmationInterface
 {
     /**
-     * Get copy with storage service.
-     *
-     * @param Storage $storage
-     * @return static
+     * @inheritDoc
      */
     public function withStorage(Storage $storage)
     {
@@ -24,10 +22,15 @@ class NoConfirmation implements ConfirmationInterface
     }
 
     /**
-     * Create a copy of this service with a specific subject.
-     *
-     * @param string $subject
-     * @return static
+     * @inheritDoc
+     */
+    public function withLogger(Logger $logger)
+    {
+        return $this;
+    }
+
+    /**
+     * @inheritDoc
      */
     public function withSubject(string $subject)
     {

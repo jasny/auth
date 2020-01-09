@@ -15,8 +15,9 @@ Authentication, authorization and access control for PHP.
 * Authorization [context](#context) (eg. "is the user an _admin_ of this _team_").  
 * PSR-14 [events](#events) for login and logout.
 * PSR-15 [middleware](#access-control-middleware) for access control.
-* Session invalidation after password change.
+* [Session invalidation](#session-invalidation) after password change.
 * [Confirmation tokens](#confirmation) for signup confirmation and forgot-password.
+* PSR-3 [logging](#logging) of interesting events.
 * Customizable to meet the requirements of your application.
 
 ---
@@ -136,7 +137,7 @@ class User implements Auth\UserInterface
 
     public function getAuthChecksum(): string
     {
-        return hash('sha256', $this->username . $this->hashedPassword);
+        return hash('sha256', $this->id . $this->hashedPassword);
     }
     
     public function getAuthRole(Auth\ContextInterface $context = null): int
@@ -310,6 +311,52 @@ $auth->is('admin'); // still returns false
 
 $auth->recalc();
 $auth->is('admin'); // returns true
+```
+
+### Session invalidation
+
+The user's authentication checksum is stored in the session and verified on each request. On a mismatch, the user is
+automatically logged out of the session.
+
+Using the hashed password for the checksum means that user will be logged out of all sessions after a password change.
+To keep him logged in in the current session call [`recalc()`](#recalc).
+
+Alternatively, you can generate a random checksum. This would allow you to explicitly force the invalidation of other
+sessions (for instance via the press of a button).
+
+```php
+use Jasny\Auth;
+
+class User implements Auth\UserInterface
+{
+    public int $id;
+    public string $username;
+    public int $accessLevel = 0;
+
+    protected string $hashedPassword;
+    protected string $authChecksum;
+
+    // ...
+    
+    public function forceLogout(): void
+    {
+        $this->authChecksum = bin2hex(random_bytes(32));
+    }
+   
+    public function getAuthChecksum(): string
+    {
+        return $this->authChecksum;
+    }
+}
+```
+
+To log out for all sessions except the current:
+
+```php
+$auth->user()->forceLogout();
+save_user_to_db($auth->user());
+
+$auth->recalc();
 ```
 
 Context
@@ -570,7 +617,7 @@ $authzArnoldAtJasny->user();      // returns the $arnold user
 $authzArnoldAtJasny->context();   // returns the $jasny organization
 ```
 
-#### Recalc
+#### Authz recalc
 
 The roles of the user are calculated and stored, so subsequent calls will always give the same result, even if the
 underlying user object is modified.
@@ -989,3 +1036,51 @@ class MyCustomConfirmation implements ConfirmationInterface
     }
 }
 ```
+
+Logging
+---
+
+You can supply a [PSR-3 compatible](https://www.php-fig.org/psr/psr-3/) logger to the `Auth` service.
+
+```php
+use Jasny\Auth\Auth;
+use Jasny\Auth\Authz;
+use Jasny\Auth\Confirmation\HashidsConfirmation;
+use Monolog\Logger;
+use Monolog\Handler\StreamHandler;
+
+// create a log channel
+$log = new Logger('auth');
+$log->pushHandler(new StreamHandler('path/to/your.log'));
+
+$levels = new Authz\Levels(['user' => 1, 'admin' => 20]);
+$auth = (new Auth($levels, new AuthStorage()))
+    ->withLogger($log);
+```
+
+The following events will be logged
+
+* [info] Login successful
+* [debug] Login failed: invalid credentials 
+* [debug] Login failed: _{cancellation reason}_
+* [debug] Logout
+* [notice] Ignoring auth info from session: invalid checksum
+
+The auth id of the user is passed as logging context. For 'invalid credentials' the supplied username is passed as
+context instead.
+
+In case the user changes it's credentials (which results in a different auth checksum), other sessions are no longer
+valid. In this case the user has any other sessions open (multiple browsers), 'invalid checksum' will be logged.
+
+### Logging confirmation
+
+The following event are logged when using Hashids confirmation tokens
+
+* [info] Verified confirmation token
+* [debug] Expired confirmation token
+* [debug] Invalid confirmation token
+* [debug] Invalid confirmation token: user not available
+* [debug] Invalid confirmation token: bad checksum
+
+The logging context will be the confirmation subject, the first 8 chars of the token, the user auth id, and the expire
+date.

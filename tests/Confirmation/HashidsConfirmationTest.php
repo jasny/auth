@@ -11,6 +11,8 @@ use Jasny\Auth\UserInterface as User;
 use Jasny\PHPUnit\CallbackMockTrait;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\MockObject\MockObject;
+use Psr\Log\LoggerInterface;
+use Psr\Log\LoggerInterface as Logger;
 
 /**
  * @covers \Jasny\Auth\Confirmation\HashidsConfirmation
@@ -19,16 +21,21 @@ class HashidsConfirmationTest extends TestCase
 {
     use CallbackMockTrait;
 
+    protected const TOKEN = '1234567890abcdefg';
     protected const STD_HEX = '8930d6fab596adc131412a8309d5391611047dcf9dad6e106ccbb5b8ee2ae7fb20200101120000002a';
 
     /** @var User&MockObject */
     protected $user;
+
+    /** @var Logger&MockObject */
+    protected $logger;
 
     public function setUp(): void
     {
         CarbonImmutable::setTestNow('2019-12-01T00:00:00+00:00');
 
         $this->user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'xyz']);
+        $this->logger = $this->createMock(LoggerInterface::class);
     }
 
     public function tearDown(): void
@@ -36,16 +43,22 @@ class HashidsConfirmationTest extends TestCase
         CarbonImmutable::setTestNow(null);
     }
 
+    public function expectedContext($uid = null, $expire = null): array
+    {
+        return ['subject' => 'test', 'token' => '12345678...']
+            + ($uid !== null ? ['user' => $uid] : [])
+            + ($expire !== null ? ['expire' => $expire] : []);
+    }
+
     public function testGetToken()
     {
         $storage = $this->createMock(Storage::class);
         $storage->expects($this->never())->method($this->anything());
 
-        /** @var Hashids&MockObject $hashids */
         $hashids = $this->createMock(Hashids::class);
         $hashids->expects($this->once())->method('encodeHex')
             ->with(self::STD_HEX)
-            ->willReturn('the_token');
+            ->willReturn(self::TOKEN);
 
         $confirm = (new HashidsConfirmation('secret', fn() => $hashids))
             ->withStorage($storage)
@@ -53,7 +66,7 @@ class HashidsConfirmationTest extends TestCase
 
         $token = $confirm->getToken($this->user, new \DateTime('2020-01-01T12:00:00+00:00'));
 
-        $this->assertEquals('the_token', $token);
+        $this->assertEquals(self::TOKEN, $token);
     }
 
 
@@ -69,15 +82,15 @@ class HashidsConfirmationTest extends TestCase
             $storage->expects($this->never())->method('fetchUserById');
         }
 
-        /** @var Hashids&MockObject $hashids */
         $hashids = $this->createMock(Hashids::class);
         $hashids->expects($this->never())->method('encodeHex');
         $hashids->expects($this->once())->method('decodeHex')
-            ->with('the_token')
+            ->with(self::TOKEN)
             ->willReturn($hex);
 
         return (new HashidsConfirmation('secret', fn() => $hashids))
             ->withStorage($storage)
+            ->withLogger($this->logger)
             ->withSubject('test');
     }
 
@@ -85,7 +98,10 @@ class HashidsConfirmationTest extends TestCase
     {
         $confirm = $this->createService(self::STD_HEX, $this->user);
 
-        $this->assertSame($this->user, $confirm->from('the_token'));
+        $this->logger->expects($this->once())->method('info')
+            ->with('Verified confirmation token', $this->expectedContext(42, '2020-01-01T12:00:00+00:00'));
+
+        $this->assertSame($this->user, $confirm->from(self::TOKEN));
     }
 
 
@@ -96,15 +112,23 @@ class HashidsConfirmationTest extends TestCase
 
         $confirm = $this->createService($hex, $user);
 
-        $this->assertSame($user, $confirm->from('the_token'));
+        $this->logger->expects($this->once())->method('info')
+            ->with('Verified confirmation token', $this->expectedContext('z01', '2020-01-01T12:00:00+00:00'));
+
+        $this->assertSame($user, $confirm->from(self::TOKEN));
     }
 
     public function testFromDeletedUser()
     {
         $confirm = $this->createService(self::STD_HEX, null);
 
-        $this->expectExceptionObject(new InvalidTokenException("User '42' doesn't exist"));
-        $confirm->from('the_token');
+        $this->expectExceptionObject(new InvalidTokenException("Token has been revoked"));
+
+        $expectedContext = $this->expectedContext(42, '2020-01-01T12:00:00+00:00');
+        $this->logger->expects($this->once())->method('debug')
+            ->with('Invalid confirmation token: user not available', $expectedContext);
+
+        $confirm->from(self::TOKEN);
     }
     
     public function testFromInvalidChecksum()
@@ -113,8 +137,13 @@ class HashidsConfirmationTest extends TestCase
 
         $confirm = $this->createService($hex, $this->user);
 
-        $this->expectExceptionObject(new InvalidTokenException("Checksum doesn't match"));
-        $confirm->from('the_token');
+        $this->expectExceptionObject(new InvalidTokenException("Token has been revoked"));
+
+        $expectedContext = $this->expectedContext(42, '2020-01-01T00:00:00+00:00');
+        $this->logger->expects($this->once())->method('debug')
+            ->with('Invalid confirmation token: bad checksum', $expectedContext);
+
+        $confirm->from(self::TOKEN);
     }
 
     public function testFromInvalidToken()
@@ -124,7 +153,11 @@ class HashidsConfirmationTest extends TestCase
         $confirm = $this->createService($hex);
 
         $this->expectExceptionObject(new InvalidTokenException("Invalid confirmation token"));
-        $confirm->from('the_token');
+
+        $this->logger->expects($this->once())->method('debug')
+            ->with('Invalid confirmation token', $this->expectedContext());
+
+        $confirm->from(self::TOKEN);
     }
 
     public function testFromInvalidUid()
@@ -134,7 +167,11 @@ class HashidsConfirmationTest extends TestCase
         $confirm = $this->createService($hex);
 
         $this->expectExceptionObject(new InvalidTokenException("Invalid confirmation token"));
-        $confirm->from('the_token');
+
+        $this->logger->expects($this->once())->method('debug')
+            ->with('Invalid confirmation token', $this->expectedContext());
+
+        $confirm->from(self::TOKEN);
     }
 
     public function testFromTokenWithInvalidExpireDate()
@@ -144,17 +181,25 @@ class HashidsConfirmationTest extends TestCase
         $confirm = $this->createService($hex);
 
         $this->expectExceptionObject(new InvalidTokenException("Invalid confirmation token"));
-        $confirm->from('the_token');
+
+        $this->logger->expects($this->once())->method('debug')
+            ->with('Invalid confirmation token', $this->expectedContext());
+
+        $confirm->from(self::TOKEN);
     }
 
     public function testFromExpiredToken()
     {
         $hex = 'b087edc903ba55d052e51aa2f8a01bc8e68c9503778eedc941e9932b36dd8d09' . '20191101120000' . '002a';
 
-        $confirm = $this->createService($hex);
+        $confirm = $this->createService($hex, $this->user);
 
         $this->expectExceptionObject(new InvalidTokenException("Token is expired"));
-        $confirm->from('the_token');
+
+        $this->logger->expects($this->once())->method('debug')
+            ->with('Expired confirmation token', $this->expectedContext(42, '2019-11-01T12:00:00+00:00'));
+
+        $confirm->from(self::TOKEN);
     }
 
     public function testCreateHashIdsWithCallback()

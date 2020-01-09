@@ -15,6 +15,7 @@ use Jasny\PHPUnit\PrivateAccessTrait;
 use PHPStan\Testing\TestCase;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\EventDispatcher\EventDispatcherInterface as EventDispatcher;
+use Psr\Log\LoggerInterface;
 
 /**
  * @covers \Jasny\Auth\Auth
@@ -33,8 +34,11 @@ class AuthTest extends TestCase
     protected $storage;
     /** @var Confirmation&MockObject */
     protected $confirmation;
+
     /** @var EventDispatcher&MockObject */
     protected $dispatcher;
+    /** @var LoggerInterface&MockObject */
+    protected $logger;
 
     public function setUp(): void
     {
@@ -42,10 +46,13 @@ class AuthTest extends TestCase
         $this->storage = $this->createMock(Storage::class);
         $this->confirmation = $this->createMock(Confirmation::class);
         $this->session = $this->createMock(Session::class);
+
         $this->dispatcher = $this->createMock(EventDispatcher::class);
+        $this->logger = $this->createMock(LoggerInterface::class);
 
         $this->service = (new Auth($this->authz, $this->storage, $this->confirmation))
-            ->withEventDispatcher($this->dispatcher);
+            ->withEventDispatcher($this->dispatcher)
+            ->withLogger($this->logger);
 
         if (!in_array('initialize', $this->getGroups(), true)) {
             $this->setPrivateProperty($this->service, 'session', $this->session);
@@ -247,6 +254,9 @@ class AuthTest extends TestCase
             ->with(42)
             ->willReturn($user);
         $this->storage->expects($this->never())->method('fetchContext');
+
+        $this->logger->expects($this->once())->method('notice')
+            ->with("Ignoring auth info from session: invalid checksum", ['user' => 42]);
         //</editor-fold>
 
         $newAuthz = $this->expectInitAuthz(null, null);
@@ -384,6 +394,9 @@ class AuthTest extends TestCase
 
         $this->storage->expects($this->once())->method('getContextForUser')->willReturn(null);
 
+        $this->logger->expects($this->once())->method('info')
+            ->with("Login successful", ['user' => 42]);
+
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
         $this->authz->expects($this->never())->method('user');
         $newAuthz = $this->expectSetAuthzUser($user);
@@ -495,6 +508,9 @@ class AuthTest extends TestCase
 
         $this->storage->expects($this->once())->method('getContextForUser')->willReturn(null);
 
+        $this->logger->expects($this->once())->method('info')
+            ->with("Login successful", ['user' => 42]);
+
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
         $this->authz->expects($this->never())->method('user');
         $newAuthz = $this->expectSetAuthzUser($user);
@@ -515,6 +531,9 @@ class AuthTest extends TestCase
 
         //<editor-fold desc="[prepare mocks]">
         $this->dispatcher->expects($this->never())->method('dispatch');
+
+        $this->logger->expects($this->once())->method('debug')
+            ->with("Login failed: invalid credentials", ['username' => 'john']);
 
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
         $this->authz->expects($this->never())->method('user');
@@ -547,6 +566,9 @@ class AuthTest extends TestCase
 
         $this->dispatcher->expects($this->never())->method('dispatch');
 
+        $this->logger->expects($this->once())->method('debug')
+            ->with("Login failed: invalid credentials", ['username' => 'john']);
+
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
         $this->authz->expects($this->never())->method('user');
         $this->authz->expects($this->never())->method('forUser');
@@ -578,6 +600,7 @@ class AuthTest extends TestCase
     {
         //<editor-fold desc="[prepare mocks]">
         $user = $this->createMock(User::class);
+        $user->expects($this->any())->method('getAuthId')->willReturn(42);
 
         $this->dispatcher->expects($this->once())->method('dispatch')
             ->with($this->callback(function ($event) use ($user) {
@@ -588,6 +611,9 @@ class AuthTest extends TestCase
                 return true;
             }))
             ->willReturnArgument(0);
+
+        $this->logger->expects($this->once())->method('debug')
+            ->with("Logout", ['user' => 42]);
 
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(true);
         $this->authz->expects($this->any())->method('user')->willReturn($user);
@@ -718,9 +744,14 @@ class AuthTest extends TestCase
     public function testConfirm()
     {
         $newConfirmation = $this->createMock(Confirmation::class);
+        $newConfirmation->expects($this->never())->method($this->anything());
 
         $this->confirmation->expects($this->once())->method('withStorage')
             ->with($this->identicalTo($this->storage))
+            ->willReturnSelf();
+
+        $this->confirmation->expects($this->once())->method('withLogger')
+            ->with($this->identicalTo($this->logger))
             ->willReturnSelf();
 
         $this->confirmation->expects($this->once())->method('withSubject')

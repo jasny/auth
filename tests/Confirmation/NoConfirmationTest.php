@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Jasny\Auth\Tests;
+namespace Jasny\Auth\Tests\Confirmation;
 
 use Jasny\Auth\Confirmation\NoConfirmation;
 use Jasny\Auth\StorageInterface;
 use Jasny\Auth\UserInterface as User;
-use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 /**
  * @covers \Jasny\Auth\Confirmation\NoConfirmation
@@ -27,17 +27,20 @@ class NoConfirmationTest extends TestCase
         $this->assertSame($this->service, $this->service->withSubject('test'));
     }
 
+    public function testWithLogger()
+    {
+        $logger = $this->createMock(LoggerInterface::class);
+        $this->assertSame($this->service, $this->service->withLogger($logger));
+    }
+
     public function testWithStorage()
     {
-        /** @var StorageInterface $storage */
         $storage = $this->createMock(StorageInterface::class);
-
         $this->assertSame($this->service, $this->service->withStorage($storage));
     }
 
     public function testGetToken()
     {
-        /** @var User&MockObject $user */
         $user = $this->createMock(User::class);
 
         $this->expectException(\LogicException::class);
