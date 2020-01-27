@@ -23,8 +23,7 @@
         "psr/http-factory": "^1.0",
         "psr/http-message": "^1.0",
         "psr/http-server-middleware": "^1.0",
-        "psr/log": "^1.1",
-        "unreal4u/dummy-logger": "^1.0"
+        "psr/log": "^1.1"
     },
     "require-dev": {
         "hashids/hashids": "~2.0.0",

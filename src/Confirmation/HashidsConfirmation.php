@@ -9,8 +9,8 @@ use Hashids\Hashids;
 use Jasny\Auth\UserInterface as User;
 use Jasny\Auth\StorageInterface as Storage;
 use Jasny\Immutable;
-use unreal4u\Dummy\Logger as DummyLogger;
 use Psr\Log\LoggerInterface as Logger;
+use Psr\Log\NullLogger;
 
 /**
  * Generate and verify confirmation tokens using the Hashids library.
@@ -43,7 +43,7 @@ class HashidsConfirmation implements ConfirmationInterface
             ? \Closure::fromCallable($createHashids)
             : fn(string $salt) => new Hashids($salt);
 
-        $this->logger = new DummyLogger();
+        $this->logger = new NullLogger();
     }
 
     /**

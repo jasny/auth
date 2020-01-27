@@ -13,9 +13,9 @@ use Jasny\Auth\Session\SessionInterface as Session;
 use Jasny\Auth\StorageInterface as Storage;
 use Jasny\Auth\UserInterface as User;
 use Jasny\Immutable;
-use unreal4u\Dummy\Logger as DummyLogger;
 use Psr\EventDispatcher\EventDispatcherInterface as EventDispatcher;
 use Psr\Log\LoggerInterface as Logger;
+use Psr\Log\NullLogger;
 
 /**
  * Authentication and authorization.
@@ -52,7 +52,7 @@ class Auth implements Authz
 
         // Set default services
         $this->dispatcher = self::dummyDispatcher();
-        $this->logger = new DummyLogger();
+        $this->logger = new NullLogger();
     }
 
     /**
