@@ -9,6 +9,7 @@ use Improved\IteratorPipeline\Pipeline;
 use Jasny\Auth\AuthzInterface;
 use Jasny\Auth\AuthzInterface as Authz;
 use Jasny\Auth\ContextInterface as Context;
+use Jasny\Auth\User\PartiallyLoggedIn;
 use Jasny\Auth\UserInterface as User;
 
 /**
@@ -25,7 +26,7 @@ use Jasny\Auth\UserInterface as User;
  *   $auth = new Auth($authz);
  * </code>
  *
- * Levels should be positive integers.
+ * Levels should be positive integers (greater than 0).
  */
 class Levels implements AuthzInterface
 {
@@ -80,6 +81,16 @@ class Levels implements AuthzInterface
         return array_keys($this->levels);
     }
 
+
+    /**
+     * Check if the current user is partially logged in.
+     * Typically this means MFA verification is required.
+     */
+    public function isPartiallyLoggedIn(): bool
+    {
+        return $this->userLevel < 0;
+    }
+
     /**
      * Check if the current user is logged in and has specified role.
      */
@@ -120,6 +131,21 @@ class Levels implements AuthzInterface
             return;
         }
 
+        if ($this->user instanceof PartiallyLoggedIn) {
+            $this->userLevel = -1;
+            return;
+        }
+
+        $this->userLevel = $this->getUserLevelFromRole();
+    }
+
+    /**
+     * Get the user level from the auth role of the user.
+     *
+     * @throws \DomainException for unknown level names
+     */
+    private function getUserLevelFromRole(): int
+    {
         $uid = $this->user->getAuthId();
 
         $role = i\type_check(
@@ -132,6 +158,6 @@ class Levels implements AuthzInterface
             throw new \DomainException("Authorization level '$role' isn't defined (uid:$uid)");
         }
 
-        $this->userLevel = is_string($role) ? $this->levels[$role] : (int)$role;
+        return is_string($role) ? $this->levels[$role] : (int)$role;
     }
 }

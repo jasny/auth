@@ -59,7 +59,7 @@ class LevelsTest extends TestCase
 
     public function testWithUnknownUserRole()
     {
-        $user = $this->createConfiguredMock(User::class, ['getAuthRole' => 'foo', 'getAuthId' => 42]);
+        $user = $this->createConfiguredMock(User::class, ['getAuthRole' => 'foo', 'getAuthId' => '42']);
 
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage("Authorization level 'foo' isn't defined (uid:42)");

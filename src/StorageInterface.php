@@ -14,11 +14,8 @@ interface StorageInterface
 {
     /**
      * Fetch user from DB by id.
-     *
-     * @param string|int $id
-     * @return User|null
      */
-    public function fetchUserById($id): ?User;
+    public function fetchUserById(string $id): ?User;
 
     /**
      * Fetch user from DB by username.
@@ -31,10 +28,10 @@ interface StorageInterface
     /**
      * Fetch context from DB by id.
      *
-     * @param mixed $id
+     * @param string $id
      * @return Context|null
      */
-    public function fetchContext($id): ?Context;
+    public function fetchContext(string $id): ?Context;
 
     /**
      * Get the default context for the user.

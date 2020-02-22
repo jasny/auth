@@ -29,6 +29,12 @@ trait StateTrait
     protected ?Context $context = null;
 
     /**
+     * Check if the current user is partially logged in.
+     * Typically MFA verification is required in this state.
+     */
+    abstract public function isPartiallyLoggedIn(): bool;
+
+    /**
      * Get a copy of the service for the given user.
      *
      * @param User|null $user
@@ -78,6 +84,6 @@ trait StateTrait
      */
     public function isLoggedIn(): bool
     {
-        return $this->user !== null;
+        return $this->user !== null && !$this->isPartiallyLoggedIn();
     }
 }

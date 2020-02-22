@@ -71,7 +71,7 @@ class AuthStorage implements Auth\StorageInterface
     /**
      * Fetch a user by ID
      */
-    public function fetchUserById($id): ?Auth\UserInterface
+    public function fetchUserById(string $id): ?Auth\UserInterface
     {
         // Database action that fetches a User object
     }
@@ -87,7 +87,7 @@ class AuthStorage implements Auth\StorageInterface
     /**
      * Fetch the context by ID.
      */
-    public function fetchContext($id) : ?Auth\ContextInterface
+    public function fetchContext(string $id) : ?Auth\ContextInterface
     {
         // Database action that fetches a context (or return null)
     }
@@ -111,13 +111,13 @@ use Jasny\Auth;
 
 class User implements Auth\UserInterface
 {
-    public int $id;
+    public string $id;
     public string $username;
     public int $accessLevel = 0;
 
     protected string $hashedPassword;
 
-    public function getAuthId()
+    public function getAuthId(): string
     {
         return $this->id;
     }
@@ -200,7 +200,7 @@ use Jasny\Auth;
 
 class User implements Auth\UserInterface
 {
-    public int $id;
+    public string $id;
     public string $username;
     public array $roles = [];
 
@@ -329,7 +329,7 @@ use Jasny\Auth;
 
 class User implements Auth\UserInterface
 {
-    public int $id;
+    public string $id;
     public string $username;
     public int $accessLevel = 0;
 
@@ -374,7 +374,7 @@ use Jasny\Auth;
 
 class Organization implements Auth\ContextInterface
 {
-    public int $id;
+    public string $id;
 
     public function getAuthId()
     {
@@ -388,7 +388,7 @@ use Jasny\Auth;
 
 class User implements Auth\UserInterface
 {
-    public int $id;
+    public string $id;
     public string $username;
     public array $roles = [];
     public array $memberships;
@@ -461,7 +461,7 @@ use Jasny\Auth;
 
 class Organization implements Auth\ContextInterface
 {
-    public int $id;
+    public string $id;
 
     public function getAuthId()
     {
@@ -654,7 +654,7 @@ This makes it easier to test stateful applications.
 ```php
 use Jasny\Auth\Session\SessionObject;
 
-$session = new ArrayObject(['auth' => ['uid' => 123]]); // Session with test data
+$session = new ArrayObject(['auth' => ['uid' => '123']]); // Session with test data
 $auth->initialize(new SessionObject($session));
 ``` 
 

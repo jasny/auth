@@ -49,11 +49,11 @@ class BearerAuth implements SessionInterface
 
 
     /**
-     * Persist auth information to session.
-     *
      * @param mixed       $userId
      * @param mixed       $contextId
      * @param string|null $checksum
+     *
+     * @throws \LogicException Since bearer authorization can't be modified server side.
      */
     public function persist($userId, $contextId, ?string $checksum): void
     {
@@ -61,8 +61,6 @@ class BearerAuth implements SessionInterface
     }
 
     /**
-     * Remove auth information from session.
-     *
      * @throws \LogicException Since bearer authorization can't be modified server side.
      */
     public function clear(): void

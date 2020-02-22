@@ -12,7 +12,7 @@ use Jasny\Auth\Session\SessionInterface as Session;
 use Jasny\Auth\StorageInterface as Storage;
 use Jasny\Auth\UserInterface as User;
 use Jasny\PHPUnit\PrivateAccessTrait;
-use PHPStan\Testing\TestCase;
+use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\EventDispatcher\EventDispatcherInterface as EventDispatcher;
 use Psr\Log\LoggerInterface;
@@ -180,15 +180,15 @@ class AuthTest extends TestCase
      */
     public function testInitializeWithUser()
     {
-        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
 
         //<editor-fold desc="[prepare mocks]">
         $this->session->expects($this->once())
             ->method('getInfo')
-            ->willReturn(['user' => 42, 'context' => null, 'checksum' => 'abc']);
+            ->willReturn(['user' => '42', 'context' => null, 'checksum' => 'abc']);
 
         $this->storage->expects($this->once())->method('fetchUserById')
-            ->with(42)
+            ->with('42')
             ->willReturn($user);
         $this->storage->expects($this->never())->method('fetchContext');
         //</editor-fold>
@@ -205,16 +205,16 @@ class AuthTest extends TestCase
      */
     public function testInitializeWithUserAndContext()
     {
-        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
         $context = $this->createConfiguredMock(Context::class, ['getAuthId' => 'foo']);
 
         //<editor-fold desc="[prepare mocks]">
         $this->session->expects($this->once())
             ->method('getInfo')
-            ->willReturn(['user' => 42, 'context' => 'foo', 'checksum' => 'abc']);
+            ->willReturn(['user' => '42', 'context' => 'foo', 'checksum' => 'abc']);
 
         $this->storage->expects($this->once())->method('fetchUserById')
-            ->with(42)
+            ->with('42')
             ->willReturn($user);
         $this->storage->expects($this->once())->method('fetchContext')
             ->with('foo')
@@ -233,7 +233,7 @@ class AuthTest extends TestCase
      */
     public function testInitializeWithUserAndContextObjects()
     {
-        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
         $context = $this->createConfiguredMock(Context::class, ['getAuthId' => 'foo']);
 
         //<editor-fold desc="[prepare mocks]">
@@ -257,20 +257,20 @@ class AuthTest extends TestCase
      */
     public function testInitializeWithInvalidAuthChecksum()
     {
-        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'xyz']);
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'xyz']);
 
         //<editor-fold desc="[prepare mocks]">
         $this->session->expects($this->once())
             ->method('getInfo')
-            ->willReturn(['user' => 42, 'context' => null, 'checksum' => 'abc']);
+            ->willReturn(['user' => '42', 'context' => null, 'checksum' => 'abc']);
 
         $this->storage->expects($this->once())->method('fetchUserById')
-            ->with(42)
+            ->with('42')
             ->willReturn($user);
         $this->storage->expects($this->never())->method('fetchContext');
 
         $this->logger->expects($this->once())->method('notice')
-            ->with("Ignoring auth info from session: invalid checksum", ['user' => 42]);
+            ->with("Ignoring auth info from session: invalid checksum", ['user' => '42']);
         //</editor-fold>
 
         $newAuthz = $this->expectInitAuthz(null, null);
@@ -304,14 +304,14 @@ class AuthTest extends TestCase
      */
     public function testForMultipleRequests()
     {
-        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
         $apikey = $this->createConfiguredMock(User::class, ['getAuthId' => 'key:abc', 'getAuthChecksum' => '']);
 
         //<editor-fold desc="[prepare mocks]">
         $sessionOne = $this->createMock(Session::class);
         $sessionOne->expects($this->once())
             ->method('getInfo')
-            ->willReturn(['user' => 42, 'context' => null, 'checksum' => 'abc']);
+            ->willReturn(['user' => '42', 'context' => null, 'checksum' => 'abc']);
 
         $sessionTwo = $this->createMock(Session::class);
         $sessionTwo->expects($this->once())
@@ -319,7 +319,7 @@ class AuthTest extends TestCase
             ->willReturn(['user' => 'key:abc', 'context' => null, 'checksum' => '']);
 
         $this->storage->expects($this->exactly(2))->method('fetchUserById')
-            ->withConsecutive([42], ['key:abc'])
+            ->withConsecutive(['42'], ['key:abc'])
             ->willReturnOnConsecutiveCalls($user, $apikey);
 
         $this->storage->expects($this->never())->method('fetchContext');
@@ -394,7 +394,7 @@ class AuthTest extends TestCase
     public function testLoginAs()
     {
         //<editor-fold desc="[prepare mocks]">
-        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
 
         $this->dispatcher->expects($this->once())->method('dispatch')
             ->with($this->callback(function ($event) use ($user) {
@@ -409,7 +409,7 @@ class AuthTest extends TestCase
         $this->storage->expects($this->once())->method('getContextForUser')->willReturn(null);
 
         $this->logger->expects($this->once())->method('info')
-            ->with("Login successful", ['user' => 42]);
+            ->with("Login successful", ['user' => '42']);
 
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
         $this->authz->expects($this->never())->method('user');
@@ -417,7 +417,7 @@ class AuthTest extends TestCase
         $newAuthz->expects($this->once())->method('inContextOf')->with(null)->willReturnSelf();
 
         $this->session->expects($this->once())->method('persist')
-            ->with(42, null, 'abc');
+            ->with('42', null, 'abc');
         //</editor-fold>
 
         $this->service->loginAs($user);
@@ -425,7 +425,7 @@ class AuthTest extends TestCase
 
     public function testCancelLogin()
     {
-        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
 
         $this->dispatcher->expects($this->once())->method('dispatch')
             ->with($this->callback(function (Event\Login $event) {
@@ -466,7 +466,7 @@ class AuthTest extends TestCase
     public function testLoginAsWithDefaultContext()
     {
         //<editor-fold desc="[prepare mocks]">
-        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
         $context = $this->createConfiguredMock(Context::class, ['getAuthId' => 'foo']);
 
         $this->dispatcher->expects($this->once())->method('dispatch')
@@ -489,7 +489,7 @@ class AuthTest extends TestCase
         $userAuthz->expects($this->once())->method('inContextOf')->with($context)->willReturn($newAuthz);
 
         $this->session->expects($this->once())->method('persist')
-            ->with(42, 'foo', 'abc');
+            ->with('42', 'foo', 'abc');
         //</editor-fold>
 
         $this->service->loginAs($user);
@@ -507,7 +507,7 @@ class AuthTest extends TestCase
             ->willReturn($user);
 
         //<editor-fold desc="[prepare mocks]">
-        $user->expects($this->any())->method('getAuthId')->willReturn(42);
+        $user->expects($this->any())->method('getAuthId')->willReturn('42');
         $user->expects($this->any())->method('getAuthChecksum')->willReturn('xyz');
 
         $this->dispatcher->expects($this->once())->method('dispatch')
@@ -523,7 +523,7 @@ class AuthTest extends TestCase
         $this->storage->expects($this->once())->method('getContextForUser')->willReturn(null);
 
         $this->logger->expects($this->once())->method('info')
-            ->with("Login successful", ['user' => 42]);
+            ->with("Login successful", ['user' => '42']);
 
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
         $this->authz->expects($this->never())->method('user');
@@ -531,7 +531,7 @@ class AuthTest extends TestCase
         $newAuthz->expects($this->once())->method('inContextOf')->with(null)->willReturnSelf();
 
         $this->session->expects($this->once())->method('persist')
-            ->with(42, null, 'xyz');
+            ->with('42', null, 'xyz');
         //</editor-fold>
 
         $this->service->login('john', 'pwd');
@@ -571,7 +571,7 @@ class AuthTest extends TestCase
             ->willReturn(false);
 
         //<editor-fold desc="[prepare mocks]">
-        $user->expects($this->any())->method('getAuthId')->willReturn(42);
+        $user->expects($this->any())->method('getAuthId')->willReturn('42');
         $user->expects($this->any())->method('getAuthChecksum')->willReturn('abc');
 
         $this->storage->expects($this->once())->method('fetchUserByUsername')
@@ -614,7 +614,7 @@ class AuthTest extends TestCase
     {
         //<editor-fold desc="[prepare mocks]">
         $user = $this->createMock(User::class);
-        $user->expects($this->any())->method('getAuthId')->willReturn(42);
+        $user->expects($this->any())->method('getAuthId')->willReturn('42');
 
         $this->dispatcher->expects($this->once())->method('dispatch')
             ->with($this->callback(function ($event) use ($user) {
@@ -627,7 +627,7 @@ class AuthTest extends TestCase
             ->willReturnArgument(0);
 
         $this->logger->expects($this->once())->method('debug')
-            ->with("Logout", ['user' => 42]);
+            ->with("Logout", ['user' => '42']);
 
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(true);
         $this->authz->expects($this->any())->method('user')->willReturn($user);
@@ -654,7 +654,7 @@ class AuthTest extends TestCase
 
     public function testSetContext()
     {
-        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
         $context = $this->createConfiguredMock(Context::class, ['getAuthId' => 'foo']);
 
         //<editor-fold desc="[prepare mocks]">
@@ -662,7 +662,7 @@ class AuthTest extends TestCase
         $this->authz->expects($this->any())->method('user')->willReturn($user);
 
         $this->session->expects($this->once())->method('persist')
-            ->with(42, 'foo', 'abc');
+            ->with('42', 'foo', 'abc');
         //</editor-fold>
 
         $newAuthz = $this->expectSetAuthzContext($user, $context);
@@ -674,14 +674,14 @@ class AuthTest extends TestCase
 
     public function testClearContext()
     {
-        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
 
         //<editor-fold desc="[prepare mocks]">
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(true);
         $this->authz->expects($this->any())->method('user')->willReturn($user);
 
         $this->session->expects($this->once())->method('persist')
-            ->with(42, null, 'abc');
+            ->with('42', null, 'abc');
         //</editor-fold>
 
         $newAuthz = $this->expectSetAuthzContext($user, null);
@@ -693,7 +693,7 @@ class AuthTest extends TestCase
 
     public function testRecalc()
     {
-        $user = $this->createConfiguredMock(User::class, ['getAuthId' => 42, 'getAuthChecksum' => 'abc']);
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
         $context = $this->createConfiguredMock(Context::class, ['getAuthId' => 'foo']);
 
         $newAuthz = $this->createNewAuthzMock($user, $context);
@@ -706,7 +706,7 @@ class AuthTest extends TestCase
 
         $this->session->expects($this->never())->method('clear');
         $this->session->expects($this->once())->method('persist')
-            ->with(42, 'foo', 'abc');
+            ->with('42', 'foo', 'abc');
         //</editor-fold>
 
         $this->service->recalc();

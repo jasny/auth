@@ -11,6 +11,7 @@ use Jasny\Auth\ContextInterface as Context;
 use Jasny\Auth\Session\PhpSession;
 use Jasny\Auth\Session\SessionInterface as Session;
 use Jasny\Auth\StorageInterface as Storage;
+use Jasny\Auth\User\PartiallyLoggedIn;
 use Jasny\Auth\UserInterface as User;
 use Jasny\Immutable;
 use Psr\EventDispatcher\EventDispatcherInterface as EventDispatcher;
@@ -41,6 +42,9 @@ class Auth implements Authz
     /** Allow service to be re-initialized */
     protected bool $forMultipleRequests = false;
 
+    /** @var \Closure&callable(User $user, string $code):bool */
+    protected \Closure $verifyMFA;
+
     /**
      * Auth constructor.
      */
@@ -53,6 +57,7 @@ class Auth implements Authz
         // Set default services
         $this->dispatcher = self::dummyDispatcher();
         $this->logger = new NullLogger();
+        $this->verifyMFA = fn() => false;
     }
 
     /**
@@ -87,6 +92,17 @@ class Auth implements Authz
     public function getLogger(): Logger
     {
         return $this->logger;
+    }
+
+    /**
+     * Get a copy of the service with Multi Factor Authentication (MFA) support.
+     *
+     * @param callable $verify  Callback to verify MFA.
+     * @return static
+     */
+    public function withMFA(callable $verify): self
+    {
+        return $this->withProperty('verifyMFA', \Closure::fromCallable($verify));
     }
 
 
@@ -183,6 +199,17 @@ class Auth implements Authz
     }
 
     /**
+     * Check if the current user is partially logged in.
+     * Typically this means MFA verification is required.
+     */
+    final public function isPartiallyLoggedIn(): bool
+    {
+        $this->assertInitialized();
+
+        return $this->authz->isPartiallyLoggedIn();
+    }
+
+    /**
      * Check if the current user is logged in and has specified role.
      *
      * <code>
@@ -259,6 +286,11 @@ class Auth implements Authz
             throw new LoginException('Invalid credentials', LoginException::INVALID_CREDENTIALS);
         }
 
+        if ($user->requiresMFA()) {
+            $this->partialLoginUser($user);
+            return;
+        }
+
         $this->loginUser($user);
     }
 
@@ -288,6 +320,48 @@ class Auth implements Authz
         $this->updateSession();
 
         $this->logger->info("Login successful", ['user' => $user->getAuthId()]);
+    }
+
+    /**
+     * Set the current user and dispatch login event.
+     *
+     * @throws LoginException
+     */
+    private function partialLoginUser(User $user): void
+    {
+        $event = new Event\PartialLogin($this, $user);
+        $this->dispatcher->dispatch($event);
+
+        if ($event->isCancelled()) {
+            $this->logger->info("Login failed: " . $event->getCancellationReason(), ['user' => $user->getAuthId()]);
+            throw new LoginException($event->getCancellationReason(), LoginException::CANCELLED);
+        }
+
+        // Beware; the `authz` property may have been changed via the partial login event.
+        $this->authz = $this->authz->forUser(new PartiallyLoggedIn($user));
+
+        $this->updateSession();
+
+        $this->logger->info("Partial login", ['user' => $user->getAuthId()]);
+    }
+
+    /**
+     * MFA verification.
+     */
+    public function mfa(string $code): void
+    {
+        $this->assertInitialized();
+
+        if (!$this->isLoggedIn() && !$this->isPartiallyLoggedIn()) {
+            throw new \RuntimeException("Unable to perform MFA verification: No user (partially) logged in.");
+        }
+
+        $verified = ($this->verifyMFA)($this->user(), $code);
+
+        if (!$verified) {
+            $this->logger->debug("Login failed: invalid MFA", ['user' => $this->user()->getAuthId()]);
+            throw new LoginException('Invalid MFA', LoginException::INVALID_CREDENTIALS);
+        }
     }
 
     /**

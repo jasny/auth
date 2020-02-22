@@ -30,7 +30,9 @@ class Groups implements Authz
 {
     use StateTrait;
 
-    /** @var array<string,string[]> */
+    protected const PARTIAL = '#partial';
+
+    /** @var array<string,array<string>> */
     protected array $groups;
 
     /**
@@ -87,9 +89,9 @@ class Groups implements Authz
     /**
      * Expand groups to include all roles they supersede.
      *
-     * @param string                 $role
-     * @param array<string,string[]> $groups
-     * @param string[]               $expanded  Accumulator
+     * @param string                      $role
+     * @param array<string,array<string>> $groups
+     * @param string[]                    $expanded  Accumulator
      * @return string[]
      */
     protected function expand(string $role, array $groups, array &$expanded = []): array
@@ -119,6 +121,16 @@ class Groups implements Authz
     public function getAvailableRoles(): array
     {
         return array_keys($this->groups);
+    }
+
+
+    /**
+     * Check if the current user is partially logged in.
+     * Typically this means MFA verification is required.
+     */
+    public function isPartiallyLoggedIn(): bool
+    {
+        return in_array(self::PARTIAL, $this->userRoles, true);
     }
 
     /**

@@ -27,6 +27,11 @@ class HashidsConfirmation implements ConfirmationInterface
     protected \Closure $createHashids;
     protected Storage $storage;
 
+    /** @var \Closure&callable(string $uid):string|false */
+    protected \Closure $encodeUid;
+    /** @var \Closure&callable(string $uid):string|false */
+    protected \Closure $decodeUid;
+
     protected Logger $logger;
 
     /**
@@ -43,6 +48,9 @@ class HashidsConfirmation implements ConfirmationInterface
             ? \Closure::fromCallable($createHashids)
             : fn(string $salt) => new Hashids($salt);
 
+        $this->encodeUid = fn(string $uid) => unpack('H*', $uid)[1];
+        $this->decodeUid = fn(string $hex) => pack('H*', $hex);
+
         $this->logger = new NullLogger();
     }
 
@@ -55,6 +63,20 @@ class HashidsConfirmation implements ConfirmationInterface
     public function withStorage(Storage $storage): self
     {
         return $this->withProperty('storage', $storage);
+    }
+
+    /**
+     * Get a copy with custom methods to encode/decode the uid.
+     *
+     * @param callable $encode
+     * @param callable $decode
+     * @return static
+     */
+    public function withUidEncoded(callable $encode, callable $decode): self
+    {
+        return $this
+            ->withProperty('encodeUid', \Closure::fromCallable($encode))
+            ->withProperty('decodeUid', \Closure::fromCallable($decode));
     }
 
     /**
@@ -130,7 +152,7 @@ class HashidsConfirmation implements ConfirmationInterface
      * Extract uid, expire date and checksum from hex.
      *
      * @param string $hex
-     * @return null|array{checksum:string,expire:CarbonImmutable,uid:string|int}
+     * @return null|array{checksum:string,expire:CarbonImmutable,uid:string}
      */
     protected function extractHex(string $hex): ?array
     {
@@ -157,41 +179,46 @@ class HashidsConfirmation implements ConfirmationInterface
     /**
      * Encode the uid to a hex value.
      *
-     * @param int|string $uid
+     * @param string $uid
      * @return string
      */
-    protected function encodeUid($uid): string
+    protected function encodeUid(string $uid): string
     {
-        return is_int($uid) ? '00' . dechex($uid) : '01' . (unpack('H*', $uid)[1]);
+        $hex = ($this->encodeUid)($uid);
+
+        if ($hex === false) {
+            throw new \RuntimeException("Failed to encode uid");
+        }
+
+        return $hex;
     }
 
     /**
      * Decode the uid to a hex value.
      *
      * @param string $hex
-     * @return int|string
+     * @return string
      */
-    protected function decodeUid(string $hex)
+    protected function decodeUid(string $hex): string
     {
-        $type = substr($hex, 0, 2);
-        $uidHex = substr($hex, 2);
+        $uid = ($this->decodeUid)($hex);
 
-        if ($type !== '00' && $type !== '01') {
-            throw new \RuntimeException("Invalid uid");
+        if ($uid === false) {
+            throw new \RuntimeException("Failed to decode uid");
         }
 
-        return $type === '00' ? (int)hexdec($uidHex) : pack('H*', $uidHex);
+        return $uid;
     }
 
     /**
      * Fetch user from storage by uid.
      *
-     * @param string|int        $uid
-     * @param array<int|string> $context
+     * @param string   $uid
+     * @param string[] $context
      * @return User
      * @throws InvalidTokenException
      */
-    protected function fetchUserFromStorage($uid, array $context): User
+    protected function fetchUserFromStorage(string $uid, array $context): User
     {
         $user = $this->storage->fetchUserById($uid);
 
@@ -206,10 +233,10 @@ class HashidsConfirmation implements ConfirmationInterface
     /**
      * Check that the checksum from the token matches the expected checksum.
      *
-     * @param string            $checksum
-     * @param User              $user
-     * @param CarbonImmutable   $expire
-     * @param array<int|string> $context
+     * @param string          $checksum
+     * @param User            $user
+     * @param CarbonImmutable $expire
+     * @param string[]        $context
      * @throws InvalidTokenException
      */
     protected function verifyChecksum(string $checksum, User $user, CarbonImmutable $expire, array $context): void
@@ -228,7 +255,7 @@ class HashidsConfirmation implements ConfirmationInterface
      * Check that the token isn't expired.
      *
      * @param CarbonImmutable   $expire
-     * @param array<int|string> $context
+     * @param string[]          $context
      * @throws InvalidTokenException
      */
     protected function verifyNotExpired(CarbonImmutable $expire, array $context): void

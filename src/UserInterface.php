@@ -14,9 +14,9 @@ interface UserInterface
     /**
      * Get user id
      *
-     * @return string|int
+     * @return string
      */
-    public function getAuthId();
+    public function getAuthId(): string;
 
     /**
      * Verify that the password matches.
@@ -36,4 +36,9 @@ interface UserInterface
      * @return int|string|int[]|string[]
      */
     public function getAuthRole(?Context $context = null);
+
+    /**
+     * User requires Multi Factor Authentication.
+     */
+    public function requiresMFA(): bool;
 }

@@ -102,7 +102,7 @@ class GroupsTest extends TestCase
 
     public function testIsWithUnknownUserRole()
     {
-        $user = $this->createConfiguredMock(User::class, ['getAuthRole' => 'foo', 'getAuthId' => 42]);
+        $user = $this->createConfiguredMock(User::class, ['getAuthRole' => 'foo', 'getAuthId' => '42']);
         $this->authz = $this->authz->forUser($user);
 
         $this->assertFalse($this->authz->is('user'));

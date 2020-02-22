@@ -10,9 +10,7 @@ namespace Jasny\Auth;
 interface ContextInterface
 {
     /**
-     * Get context id
-     *
-     * @return string|int
+     * Get context id.
      */
-    public function getAuthId();
+    public function getAuthId(): ?string;
 }
