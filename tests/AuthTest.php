@@ -10,6 +10,7 @@ use Jasny\Auth\Event;
 use Jasny\Auth\LoginException;
 use Jasny\Auth\Session\SessionInterface as Session;
 use Jasny\Auth\StorageInterface as Storage;
+use Jasny\Auth\User\PartiallyLoggedIn;
 use Jasny\Auth\UserInterface as User;
 use Jasny\PHPUnit\PrivateAccessTrait;
 use PHPUnit\Framework\TestCase;
@@ -59,21 +60,24 @@ class AuthTest extends TestCase
         }
     }
 
+
     /**
      * @return Authz&MockObject
      */
     protected function createNewAuthzMock(?User $user, ?Context $context)
     {
         $newAuthz = $this->createMock(Authz::class);
+        $loggedIn = $user !== null;
 
-        if ($user === null) {
-            $newAuthz->expects($this->any())->method('isLoggedIn')->willReturn(false);
+        if (!$loggedIn) {
             $newAuthz->expects($this->never())->method('user');
         } else {
-            $newAuthz->expects($this->any())->method('isLoggedIn')->willReturn(true);
             $newAuthz->expects($this->any())->method('user')->willReturn($user);
         }
 
+        $newAuthz->expects($this->any())->method('isLoggedIn')->willReturn($loggedIn);
+        $newAuthz->expects($this->any())->method('isLoggedOut')->willReturn(!$loggedIn);
+        $newAuthz->expects($this->any())->method('isPartiallyLoggedIn')->willReturn(false);
         $newAuthz->expects($this->any())->method('context')->willReturn($context);
 
         return $newAuthz;
@@ -125,6 +129,29 @@ class AuthTest extends TestCase
         return $newAuthz;
     }
 
+    /**
+     * @return Authz&MockObject
+     */
+    protected function expectAuthzWithPartialLogin(User $user)
+    {
+        $newAuthz = $this->createMock(Authz::class);
+        $newAuthz->expects($this->any())->method('isLoggedIn')->willReturn(false);
+        $newAuthz->expects($this->any())->method('isLoggedOut')->willReturn(false);
+        $newAuthz->expects($this->any())->method('isPartiallyLoggedIn')->willReturn(true);
+        $newAuthz->expects($this->any())->method('user')->willReturn(new PartiallyLoggedIn($user));
+
+        $this->authz->expects($this->once())->method('forUser')
+            ->with($this->callback(function ($authzUser) use ($user) {
+                $this->assertInstanceOf(PartiallyLoggedIn::class, $authzUser);
+                $this->assertSame($user, $authzUser->getUser());
+                return true;
+            }))
+            ->willReturn($newAuthz);
+
+        $newAuthz->expects($this->any())->method('inContextOf')->with(null)->willReturnSelf();
+
+        return $newAuthz;
+    }
 
     public function testWithLogger()
     {
@@ -148,7 +175,7 @@ class AuthTest extends TestCase
         //<editor-fold desc="[prepare mocks]">
         $this->session->expects($this->once())
             ->method('getInfo')
-            ->willReturn(['user' => null, 'context' => null, 'checksum' => null]);
+            ->willReturn(['user' => null, 'context' => null, 'checksum' => null, 'timestamp' => null]);
 
         $this->storage->expects($this->never())->method($this->anything());
         //</editor-fold>
@@ -183,9 +210,11 @@ class AuthTest extends TestCase
         $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
 
         //<editor-fold desc="[prepare mocks]">
+        $timestamp = new \DateTimeImmutable('2020-01-01T00:00:00+00:00');
+
         $this->session->expects($this->once())
             ->method('getInfo')
-            ->willReturn(['user' => '42', 'context' => null, 'checksum' => 'abc']);
+            ->willReturn(['user' => '42', 'context' => null, 'checksum' => 'abc', 'timestamp' => $timestamp]);
 
         $this->storage->expects($this->once())->method('fetchUserById')
             ->with('42')
@@ -198,6 +227,7 @@ class AuthTest extends TestCase
         $this->service->initialize($this->session);
 
         $this->assertSame($newAuthz, $this->service->authz());
+        $this->assertEquals($timestamp, $this->service->time());
     }
 
     /**
@@ -209,9 +239,11 @@ class AuthTest extends TestCase
         $context = $this->createConfiguredMock(Context::class, ['getAuthId' => 'foo']);
 
         //<editor-fold desc="[prepare mocks]">
+        $timestamp = new \DateTimeImmutable('2020-01-01T00:00:00+00:00');
+
         $this->session->expects($this->once())
             ->method('getInfo')
-            ->willReturn(['user' => '42', 'context' => 'foo', 'checksum' => 'abc']);
+            ->willReturn(['user' => '42', 'context' => 'foo', 'checksum' => 'abc', 'timestamp' => $timestamp]);
 
         $this->storage->expects($this->once())->method('fetchUserById')
             ->with('42')
@@ -226,6 +258,7 @@ class AuthTest extends TestCase
         $this->service->initialize($this->session);
 
         $this->assertSame($newAuthz, $this->service->authz());
+        $this->assertEquals($timestamp, $this->service->time());
     }
 
     /**
@@ -239,7 +272,7 @@ class AuthTest extends TestCase
         //<editor-fold desc="[prepare mocks]">
         $this->session->expects($this->once())
             ->method('getInfo')
-            ->willReturn(['user' => $user, 'context' => $context, 'checksum' => 'abc']);
+            ->willReturn(['user' => $user, 'context' => $context, 'checksum' => 'abc', 'timestamp' => null]);
 
         $this->storage->expects($this->never())->method('fetchUserById');
         $this->storage->expects($this->never())->method('fetchContext');
@@ -262,7 +295,7 @@ class AuthTest extends TestCase
         //<editor-fold desc="[prepare mocks]">
         $this->session->expects($this->once())
             ->method('getInfo')
-            ->willReturn(['user' => '42', 'context' => null, 'checksum' => 'abc']);
+            ->willReturn(['user' => '42', 'context' => null, 'checksum' => 'abc', 'timestamp' => null]);
 
         $this->storage->expects($this->once())->method('fetchUserById')
             ->with('42')
@@ -279,6 +312,35 @@ class AuthTest extends TestCase
 
         $this->assertSame($newAuthz, $this->service->authz());
     }
+
+    /**
+     * @group initialize
+     */
+    public function testInitializeWithPartialLogin()
+    {
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
+
+        //<editor-fold desc="[prepare mocks]">
+        $timestamp = new \DateTimeImmutable('2020-01-01T00:00:00+00:00');
+
+        $this->session->expects($this->once())
+            ->method('getInfo')
+            ->willReturn(['user' => '#partial:42', 'context' => null, 'checksum' => 'abc', 'timestamp' => $timestamp]);
+
+        $this->storage->expects($this->once())->method('fetchUserById')
+            ->with('42')
+            ->willReturn($user);
+        $this->storage->expects($this->never())->method('fetchContext');
+        //</editor-fold>
+
+        $newAuthz = $this->expectAuthzWithPartialLogin($user);
+
+        $this->service->initialize($this->session);
+
+        $this->assertSame($newAuthz, $this->service->authz());
+        $this->assertEquals($timestamp, $this->service->time());
+    }
+
 
     public function initalizedMethodProvider()
     {
@@ -311,12 +373,12 @@ class AuthTest extends TestCase
         $sessionOne = $this->createMock(Session::class);
         $sessionOne->expects($this->once())
             ->method('getInfo')
-            ->willReturn(['user' => '42', 'context' => null, 'checksum' => 'abc']);
+            ->willReturn(['user' => '42', 'context' => null, 'checksum' => 'abc', 'timestamp' => null]);
 
         $sessionTwo = $this->createMock(Session::class);
         $sessionTwo->expects($this->once())
             ->method('getInfo')
-            ->willReturn(['user' => 'key:abc', 'context' => null, 'checksum' => '']);
+            ->willReturn(['user' => 'key:abc', 'context' => null, 'checksum' => '', 'timestamp' => null]);
 
         $this->storage->expects($this->exactly(2))->method('fetchUserById')
             ->withConsecutive(['42'], ['key:abc'])
@@ -394,7 +456,10 @@ class AuthTest extends TestCase
     public function testLoginAs()
     {
         //<editor-fold desc="[prepare mocks]">
-        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
+        $user = $this->createConfiguredMock(
+            User::class,
+            ['getAuthId' => '42', 'getAuthChecksum' => 'abc', 'requiresMFA' => false]
+        );
 
         $this->dispatcher->expects($this->once())->method('dispatch')
             ->with($this->callback(function ($event) use ($user) {
@@ -417,15 +482,56 @@ class AuthTest extends TestCase
         $newAuthz->expects($this->once())->method('inContextOf')->with(null)->willReturnSelf();
 
         $this->session->expects($this->once())->method('persist')
-            ->with('42', null, 'abc');
+            ->with('42', null, 'abc', $this->isInstanceOf(\DateTimeInterface::class));
         //</editor-fold>
 
         $this->service->loginAs($user);
+
+        $this->assertSame($newAuthz, $this->service->authz());
+    }
+
+    public function testLoginAsWithPartialLogin()
+    {
+        //<editor-fold desc="[prepare mocks]">
+        $user = $this->createConfiguredMock(
+            User::class,
+            ['getAuthId' => '42', 'getAuthChecksum' => 'abc', 'requiresMFA' => true]
+        );
+
+        $this->dispatcher->expects($this->once())->method('dispatch')
+            ->with($this->callback(function ($event) use ($user) {
+                $this->assertInstanceOf(Event\PartialLogin::class, $event);
+                $this->assertSame($user, $event->user());
+                return true;
+            }))
+            ->willReturnArgument(0);
+
+        $this->storage->expects($this->never())->method('getContextForUser');
+
+        $this->logger->expects($this->once())->method('info')
+            ->with("Partial login", ['user' => '42']);
+
+        $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
+        $this->authz->expects($this->never())->method('user');
+
+        $newAuthz = $this->expectAuthzWithPartialLogin($user);
+
+        $this->session->expects($this->once())->method('persist')
+            ->with('#partial:42', null, 'abc', $this->isInstanceOf(\DateTimeInterface::class));
+        $this->storage->expects($this->never())->method('getContextForUser');
+        //</editor-fold>
+
+        $this->service->loginAs($user);
+
+        $this->assertSame($newAuthz, $this->service->authz());
     }
 
     public function testCancelLogin()
     {
-        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
+        $user = $this->createConfiguredMock(
+            User::class,
+            ['getAuthId' => '42', 'getAuthChecksum' => 'abc', 'requiresMFA' => false]
+        );
 
         $this->dispatcher->expects($this->once())->method('dispatch')
             ->with($this->callback(function (Event\Login $event) {
@@ -466,7 +572,11 @@ class AuthTest extends TestCase
     public function testLoginAsWithDefaultContext()
     {
         //<editor-fold desc="[prepare mocks]">
-        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
+        $user = $this->createConfiguredMock(
+            User::class,
+            ['getAuthId' => '42', 'getAuthChecksum' => 'abc', 'requiresMFA' => false]
+        );
+
         $context = $this->createConfiguredMock(Context::class, ['getAuthId' => 'foo']);
 
         $this->dispatcher->expects($this->once())->method('dispatch')
@@ -489,11 +599,14 @@ class AuthTest extends TestCase
         $userAuthz->expects($this->once())->method('inContextOf')->with($context)->willReturn($newAuthz);
 
         $this->session->expects($this->once())->method('persist')
-            ->with('42', 'foo', 'abc');
+            ->with('42', 'foo', 'abc', $this->isInstanceOf(\DateTimeInterface::class));
         //</editor-fold>
 
         $this->service->loginAs($user);
+
+        $this->assertSame($newAuthz, $this->service->authz());
     }
+
 
     public function testLogin()
     {
@@ -509,6 +622,7 @@ class AuthTest extends TestCase
         //<editor-fold desc="[prepare mocks]">
         $user->expects($this->any())->method('getAuthId')->willReturn('42');
         $user->expects($this->any())->method('getAuthChecksum')->willReturn('xyz');
+        $user->expects($this->any())->method('requiresMFA')->willReturn(false);
 
         $this->dispatcher->expects($this->once())->method('dispatch')
             ->with($this->callback(function ($event) use ($user) {
@@ -531,10 +645,12 @@ class AuthTest extends TestCase
         $newAuthz->expects($this->once())->method('inContextOf')->with(null)->willReturnSelf();
 
         $this->session->expects($this->once())->method('persist')
-            ->with('42', null, 'xyz');
+            ->with('42', null, 'xyz', $this->isInstanceOf(\DateTimeInterface::class));
         //</editor-fold>
 
         $this->service->login('john', 'pwd');
+
+        $this->assertSame($newAuthz, $this->service->authz());
     }
 
     public function testLoginWithIncorrectUsername()
@@ -573,6 +689,7 @@ class AuthTest extends TestCase
         //<editor-fold desc="[prepare mocks]">
         $user->expects($this->any())->method('getAuthId')->willReturn('42');
         $user->expects($this->any())->method('getAuthChecksum')->willReturn('abc');
+        $user->expects($this->never())->method('requiresMFA');
 
         $this->storage->expects($this->once())->method('fetchUserByUsername')
             ->with('john')
@@ -652,17 +769,112 @@ class AuthTest extends TestCase
         $this->service->logout();
     }
 
+    public function testLoginWithPartialLogin()
+    {
+        $user = $this->createMock(User::class);
+        $user->expects($this->once())->method('verifyPassword')
+            ->with('pwd')
+            ->willReturn(true);
+
+        $this->storage->expects($this->once())->method('fetchUserByUsername')
+            ->with('john')
+            ->willReturn($user);
+
+        //<editor-fold desc="[prepare mocks]">
+        $user->expects($this->any())->method('getAuthId')->willReturn('42');
+        $user->expects($this->any())->method('getAuthChecksum')->willReturn('xyz');
+        $user->expects($this->any())->method('requiresMFA')->willReturn(true);
+
+        $this->dispatcher->expects($this->once())->method('dispatch')
+            ->with($this->callback(function ($event) use ($user) {
+                $this->assertInstanceOf(Event\PartialLogin::class, $event);
+                $this->assertSame($user, $event->user());
+                return true;
+            }))
+            ->willReturnArgument(0);
+
+        $this->storage->expects($this->never())->method('getContextForUser');
+
+        $this->logger->expects($this->once())->method('info')
+            ->with("Partial login", ['user' => '42']);
+
+        $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
+        $this->authz->expects($this->never())->method('user');
+
+        $newAuthz = $this->expectAuthzWithPartialLogin($user);
+
+        $this->session->expects($this->once())->method('persist')
+            ->with('#partial:42', null, 'xyz', $this->isInstanceOf(\DateTimeInterface::class));
+        //</editor-fold>
+
+        $this->service->login('john', 'pwd');
+
+        $this->assertSame($newAuthz, $this->service->authz());
+    }
+
+    public function testMfa()
+    {
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
+        $partial = new PartiallyLoggedIn($user);
+
+        //<editor-fold desc="[prepare mocks]">
+        $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
+        $this->authz->expects($this->any())->method('isPartiallyLoggedIn')->willReturn(true);
+        $this->authz->expects($this->any())->method('isLoggedOut')->willReturn(false);
+        $this->authz->expects($this->atLeastOnce())->method('user')->willReturn($partial);
+
+        $service = $this->service->withMFA(function($mfaUser, $mfaCode) use ($partial): bool  {
+            $this->assertSame($partial, $mfaUser);
+            $this->assertSame("123890", $mfaCode);
+
+            return true;
+        });
+
+        $this->dispatcher->expects($this->once())->method('dispatch')
+            ->with($this->callback(function ($event) use ($user) {
+                $this->assertInstanceOf(Event\Login::class, $event);
+
+                /** @var Event\Login $event */
+                $this->assertSame($user, $event->user());
+                return true;
+            }))
+            ->willReturnArgument(0);
+
+        $this->storage->expects($this->once())->method('getContextForUser')->willReturn(null);
+
+        $this->logger->expects($this->once())->method('info')
+            ->with("Login successful", ['user' => '42']);
+
+        $newAuthz = $this->expectSetAuthzUser($user);
+        $newAuthz->expects($this->once())->method('inContextOf')->with(null)->willReturnSelf();
+
+        $this->session->expects($this->once())->method('persist')
+            ->with('42', null, 'abc', $this->isInstanceOf(\DateTimeInterface::class));
+        //</editor-fold>
+
+        $service->mfa("123890");
+
+        $this->assertSame($newAuthz, $service->authz());
+
+        $this->assertInstanceOf(\DateTimeInterface::class, $service->time());
+        $this->assertEqualsWithDelta(time(), $service->time()->getTimestamp(), 5);
+    }
+
+
     public function testSetContext()
     {
         $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
         $context = $this->createConfiguredMock(Context::class, ['getAuthId' => 'foo']);
 
         //<editor-fold desc="[prepare mocks]">
+        $timestamp = new \DateTimeImmutable('2020-01-01T00:00:00+00:00');
+        $this->setPrivateProperty($this->service, 'timestamp', $timestamp);
+
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(true);
         $this->authz->expects($this->any())->method('user')->willReturn($user);
 
         $this->session->expects($this->once())->method('persist')
-            ->with('42', 'foo', 'abc');
+            ->with('42', 'foo', 'abc', $timestamp);
         //</editor-fold>
 
         $newAuthz = $this->expectSetAuthzContext($user, $context);
@@ -681,7 +893,7 @@ class AuthTest extends TestCase
         $this->authz->expects($this->any())->method('user')->willReturn($user);
 
         $this->session->expects($this->once())->method('persist')
-            ->with('42', null, 'abc');
+            ->with('42', null, 'abc', null);
         //</editor-fold>
 
         $newAuthz = $this->expectSetAuthzContext($user, null);
@@ -703,10 +915,9 @@ class AuthTest extends TestCase
         $this->authz->expects($this->never())->method('user');
         $this->authz->expects($this->never())->method('context');
 
-
         $this->session->expects($this->never())->method('clear');
         $this->session->expects($this->once())->method('persist')
-            ->with('42', 'foo', 'abc');
+            ->with('42', 'foo', 'abc', null);
         //</editor-fold>
 
         $this->service->recalc();
@@ -717,6 +928,7 @@ class AuthTest extends TestCase
         //<editor-fold desc="[prepare mocks]">
         $this->authz->expects($this->once())->method('recalc')->willReturnSelf();
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
+        $this->authz->expects($this->any())->method('isLoggedOut')->willReturn(true);
         $this->authz->expects($this->never())->method('user');
         $this->authz->expects($this->any())->method('context')->willReturn(null);
 

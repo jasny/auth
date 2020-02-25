@@ -26,7 +26,7 @@ class BearerAuthTest extends TestCase
         $service = $this->createService('Bearer foo');
 
         $info = $service->getInfo();
-        $this->assertEquals(['user' => 'foo', 'context' => null, 'checksum' => ''], $info);
+        $this->assertEquals(['user' => 'foo', 'context' => null, 'checksum' => '', 'timestamp' => null], $info);
     }
 
     public function testGetInfoDefault()
@@ -34,7 +34,7 @@ class BearerAuthTest extends TestCase
         $service = $this->createService('');
 
         $info = $service->getInfo();
-        $this->assertEquals(['user' => null, 'context' => null, 'checksum' => ''], $info);
+        $this->assertEquals(['user' => null, 'context' => null, 'checksum' => '', 'timestamp' => null], $info);
     }
 
     public function testGetInfoWithBasicAuth()
@@ -42,7 +42,7 @@ class BearerAuthTest extends TestCase
         $service = $this->createService('Basic QWxhZGRpbjpPcGVuU2VzYW1l');
 
         $info = $service->getInfo();
-        $this->assertEquals(['user' => null, 'context' => null, 'checksum' => ''], $info);
+        $this->assertEquals(['user' => null, 'context' => null, 'checksum' => '', 'timestamp' => null], $info);
     }
 
     public function testGetInfoWithoutRequest()
@@ -51,14 +51,14 @@ class BearerAuthTest extends TestCase
         $service = new BearerAuth();
 
         $info = $service->getInfo();
-        $this->assertEquals(['user' => 'xyz', 'context' => null, 'checksum' => ''], $info);
+        $this->assertEquals(['user' => 'xyz', 'context' => null, 'checksum' => '', 'timestamp' => null], $info);
     }
 
 
     public function testPersist()
     {
         $this->expectException(\LogicException::class);
-        $this->createService()->persist('foo', null, '');
+        $this->createService()->persist('foo', null, '', new \DateTimeImmutable());
     }
 
     public function testClear()

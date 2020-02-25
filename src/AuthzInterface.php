@@ -67,6 +67,11 @@ interface AuthzInterface
     public function isPartiallyLoggedIn(): bool;
 
     /**
+     * Check if current user is not logged in or partially logged in.
+     */
+    public function isLoggedOut(): bool;
+
+    /**
      * Check if the current user is logged in and has specified role.
      */
     public function is(string $role): bool;

@@ -86,4 +86,12 @@ trait StateTrait
     {
         return $this->user !== null && !$this->isPartiallyLoggedIn();
     }
+
+    /**
+     * Check if current user is not logged in or partially logged in.
+     */
+    public function isLoggedOut(): bool
+    {
+        return $this->user === null;
+    }
 }

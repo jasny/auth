@@ -7,6 +7,7 @@ namespace Jasny\Auth\Authz;
 use Improved\IteratorPipeline\Pipeline;
 use Jasny\Auth\AuthzInterface as Authz;
 use Jasny\Auth\ContextInterface as Context;
+use Jasny\Auth\User\PartiallyLoggedIn;
 use Jasny\Auth\UserInterface as User;
 
 /**
@@ -29,8 +30,6 @@ use Jasny\Auth\UserInterface as User;
 class Groups implements Authz
 {
     use StateTrait;
-
-    protected const PARTIAL = '#partial';
 
     /** @var array<string,array<string>> */
     protected array $groups;
@@ -130,7 +129,7 @@ class Groups implements Authz
      */
     public function isPartiallyLoggedIn(): bool
     {
-        return in_array(self::PARTIAL, $this->userRoles, true);
+        return $this->user instanceof PartiallyLoggedIn;
     }
 
     /**
@@ -165,7 +164,7 @@ class Groups implements Authz
      */
     protected function calcUserRoles(): void
     {
-        if ($this->user === null) {
+        if ($this->user === null || $this->user instanceof PartiallyLoggedIn) {
             $this->userRoles = [];
             return;
         }

@@ -144,6 +144,11 @@ class User implements Auth\UserInterface
     {
         return $this->accessLevel;
     }
+
+    public function requiresMFA() : bool
+    {
+        return false;
+    }
 }
 ```
 
@@ -643,7 +648,7 @@ use Jasny\Auth\Session\PhpSession;
 
 session_start();
 $auth->initialize(new PhpSession('userinfo'));
-``` 
+```
 
 ### Session object
 
@@ -1045,7 +1050,6 @@ You can supply a [PSR-3 compatible](https://www.php-fig.org/psr/psr-3/) logger t
 ```php
 use Jasny\Auth\Auth;
 use Jasny\Auth\Authz;
-use Jasny\Auth\Confirmation\HashidsConfirmation;
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
 

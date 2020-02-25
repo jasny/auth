@@ -126,13 +126,8 @@ class Levels implements AuthzInterface
      */
     private function calcUserLevel(): void
     {
-        if ($this->user === null) {
+        if ($this->user === null || $this->user instanceof PartiallyLoggedIn) {
             $this->userLevel = 0;
-            return;
-        }
-
-        if ($this->user instanceof PartiallyLoggedIn) {
-            $this->userLevel = -1;
             return;
         }
 

@@ -9,6 +9,8 @@ namespace Jasny\Auth\Session;
  */
 class PhpSession implements SessionInterface
 {
+    use GetInfoTrait;
+
     protected string $key;
 
     /**
@@ -34,21 +36,13 @@ class PhpSession implements SessionInterface
     }
 
     /**
-     * Get auth information from session.
-     *
-     * @return array{user:mixed,context:mixed,checksum:string|null}
+     * @inheritDoc
      */
     public function getInfo(): array
     {
         $this->assertSessionStarted();
 
-        $data = $_SESSION[$this->key] ?? [];
-
-        return [
-            'user' => $data['user'] ?? null,
-            'context' => $data['context'] ?? null,
-            'checksum' => $data['checksum'] ?? null,
-        ];
+        return $this->getInfoFromData($_SESSION[$this->key] ?? []);
     }
 
     /**
@@ -58,11 +52,16 @@ class PhpSession implements SessionInterface
      * @param mixed       $contextId
      * @param string|null $checksum
      */
-    public function persist($userId, $contextId, ?string $checksum): void
+    public function persist($userId, $contextId, ?string $checksum, ?\DateTimeInterface $timestamp): void
     {
         $this->assertSessionStarted();
 
-        $_SESSION[$this->key] = ['user' => $userId, 'context' => $contextId, 'checksum' => $checksum];
+        $_SESSION[$this->key] = [
+            'user' => $userId,
+            'context' => $contextId,
+            'checksum' => $checksum,
+            'timestamp' => isset($timestamp) ? $timestamp->getTimestamp() : null,
+        ];
     }
 
     /**

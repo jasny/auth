@@ -11,6 +11,8 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 class SessionObject implements SessionInterface
 {
+    use GetInfoTrait;
+
     protected string $key;
 
     /** @var \ArrayAccess<string,mixed> */
@@ -49,31 +51,24 @@ class SessionObject implements SessionInterface
 
 
     /**
-     * Get auth information from session.
-     *
-     * @return array{user:mixed,context:mixed,checksum:string|null}
+     * @inheritDoc
      */
     public function getInfo(): array
     {
-        $data = $this->session[$this->key] ?? [];
-
-        return [
-            'user' => $data['user'] ?? null,
-            'context' => $data['context'] ?? null,
-            'checksum' => $data['checksum'] ?? null,
-        ];
+        return $this->getInfoFromData($this->session[$this->key] ?? []);
     }
 
     /**
-     * Persist auth information to session.
-     *
-     * @param mixed       $userId
-     * @param mixed       $contextId
-     * @param string|null $checksum
+     * @inheritDoc
      */
-    public function persist($userId, $contextId, ?string $checksum): void
+    public function persist($userId, $contextId, ?string $checksum, ?\DateTimeInterface $timestamp): void
     {
-        $this->session[$this->key] = ['user' => $userId, 'context' => $contextId, 'checksum' => $checksum];
+        $this->session[$this->key] = [
+            'user' => $userId,
+            'context' => $contextId,
+            'checksum' => $checksum,
+            'timestamp' => isset($timestamp) ? $timestamp->getTimestamp() : null,
+        ];
     }
 
     /**

@@ -32,6 +32,11 @@ class Auth implements Authz
      */
     protected Authz $authz;
 
+    /**
+     * Time when logged in.
+     */
+    protected ?\DateTimeInterface $timestamp = null;
+
     protected Session $session;
     protected Storage $storage;
     protected Confirmation $confirmation;
@@ -120,7 +125,7 @@ class Auth implements Authz
         }
 
         $this->session = $session ?? new PhpSession();
-        ['user' => $user, 'context' => $context] = $this->getInfoFromSession();
+        ['user' => $user, 'context' => $context, 'timestamp' => $this->timestamp] = $this->getInfoFromSession();
 
         $this->authz = $this->authz->forUser($user)->inContextOf($context);
     }
@@ -128,32 +133,45 @@ class Auth implements Authz
     /**
      * Get user and context from session, loading objects from storage.
      *
-     * @return array{user:User|null,context:Context|null}
+     * @return array{user:User|null,context:Context|null,timestamp:\DateTimeInterface|null}
      */
     protected function getInfoFromSession()
     {
-        ['user' => $uid, 'context' => $cid, 'checksum' => $checksum] = $this->session->getInfo();
+        $partial = false;
 
-        $user = $uid !== null
-            ? ($uid instanceof User ? $uid : $this->storage->fetchUserById($uid))
-            : null;
+        $info = $this->session->getInfo();
+        ['user' => $uid, 'context' => $cid, 'checksum' => $checksum, 'timestamp' => $timestamp] = $info;
+
+        if ($uid === null || $uid instanceof User) {
+            $user = $uid;
+        } else {
+            if (substr($uid, 0, 9) === '#partial:') {
+                $partial = true;
+                $uid = substr($uid, 9);
+            }
+            $user = $this->storage->fetchUserById($uid);
+        }
 
         if ($user === null) {
-            return ['user' => null, 'context' => null];
+            return ['user' => null, 'context' => null, 'timestamp' => null];
         }
 
         if ($user->getAuthChecksum() !== (string)$checksum) {
             $authId = $user->getAuthId();
             $this->logger->notice("Ignoring auth info from session: invalid checksum", ['user' => $authId]);
 
-            return ['user' => null, 'context' => null];
+            return ['user' => null, 'context' => null, 'timestamp' => null];
         }
 
         $context = $cid !== null
             ? ($cid instanceof Context ? $cid : $this->storage->fetchContext($cid))
-            : $this->storage->getContextForUser($user);
+            : (!$partial ? $this->storage->getContextForUser($user) : null);
 
-        return ['user' => $user, 'context' => $context];
+        if ($partial) {
+            $user = new PartiallyLoggedIn($user);
+        }
+
+        return ['user' => $user, 'context' => $context, 'timestamp' => $timestamp];
     }
 
     /**
@@ -194,7 +212,6 @@ class Auth implements Authz
     final public function isLoggedIn(): bool
     {
         $this->assertInitialized();
-
         return $this->authz->isLoggedIn();
     }
 
@@ -205,8 +222,16 @@ class Auth implements Authz
     final public function isPartiallyLoggedIn(): bool
     {
         $this->assertInitialized();
-
         return $this->authz->isPartiallyLoggedIn();
+    }
+
+    /**
+     * Check if the current user is not logged in or partially logged in.
+     */
+    final public function isLoggedOut(): bool
+    {
+        $this->assertInitialized();
+        return $this->authz->isLoggedOut();
     }
 
     /**
@@ -223,7 +248,6 @@ class Auth implements Authz
     final public function is(string $role): bool
     {
         $this->assertInitialized();
-
         return $this->authz->is($role);
     }
 
@@ -235,7 +259,6 @@ class Auth implements Authz
     final public function user(): User
     {
         $this->assertInitialized();
-
         return $this->authz->user();
     }
 
@@ -245,8 +268,15 @@ class Auth implements Authz
     final public function context(): ?Context
     {
         $this->assertInitialized();
-
         return $this->authz->context();
+    }
+
+    /**
+     * Get the login timestamp.
+     */
+    public function time(): ?\DateTimeInterface
+    {
+        return $this->timestamp;
     }
 
 
@@ -286,11 +316,6 @@ class Auth implements Authz
             throw new LoginException('Invalid credentials', LoginException::INVALID_CREDENTIALS);
         }
 
-        if ($user->requiresMFA()) {
-            $this->partialLoginUser($user);
-            return;
-        }
-
         $this->loginUser($user);
     }
 
@@ -298,9 +323,15 @@ class Auth implements Authz
      * Set the current user and dispatch login event.
      *
      * @throws LoginException
+     * @noinspection PhpDocMissingThrowsInspection
      */
     private function loginUser(User $user): void
     {
+        if ($user->requiresMFA()) {
+            $this->partialLoginUser($user);
+            return;
+        }
+
         $event = new Event\Login($this, $user);
         $this->dispatcher->dispatch($event);
 
@@ -317,6 +348,7 @@ class Auth implements Authz
             $this->authz = $this->authz->inContextOf($context);
         }
 
+        $this->timestamp = new \DateTimeImmutable();
         $this->updateSession();
 
         $this->logger->info("Login successful", ['user' => $user->getAuthId()]);
@@ -326,6 +358,7 @@ class Auth implements Authz
      * Set the current user and dispatch login event.
      *
      * @throws LoginException
+     * @noinspection PhpDocMissingThrowsInspection
      */
     private function partialLoginUser(User $user): void
     {
@@ -340,6 +373,7 @@ class Auth implements Authz
         // Beware; the `authz` property may have been changed via the partial login event.
         $this->authz = $this->authz->forUser(new PartiallyLoggedIn($user));
 
+        $this->timestamp = new \DateTimeImmutable();
         $this->updateSession();
 
         $this->logger->info("Partial login", ['user' => $user->getAuthId()]);
@@ -352,15 +386,21 @@ class Auth implements Authz
     {
         $this->assertInitialized();
 
-        if (!$this->isLoggedIn() && !$this->isPartiallyLoggedIn()) {
+        if ($this->isLoggedOut()) {
             throw new \RuntimeException("Unable to perform MFA verification: No user (partially) logged in.");
         }
 
-        $verified = ($this->verifyMFA)($this->user(), $code);
+        $user = $this->user();
+
+        $verified = ($this->verifyMFA)($user, $code);
 
         if (!$verified) {
-            $this->logger->debug("Login failed: invalid MFA", ['user' => $this->user()->getAuthId()]);
+            $this->logger->debug("Login failed: invalid MFA", ['user' => $user->getAuthId()]);
             throw new LoginException('Invalid MFA', LoginException::INVALID_CREDENTIALS);
+        }
+
+        if ($user instanceof PartiallyLoggedIn) {
+            $this->loginAs($user->getUser());
         }
     }
 
@@ -414,8 +454,10 @@ class Auth implements Authz
      */
     protected function updateSession(): void
     {
-        if (!$this->authz->isLoggedIn()) {
+        if ($this->authz->isLoggedOut()) {
+            $this->timestamp = null;
             $this->session->clear();
+
             return;
         }
 
@@ -426,7 +468,7 @@ class Auth implements Authz
         $cid = $context !== null ? $context->getAuthId() : null;
         $checksum = $user->getAuthChecksum();
 
-        $this->session->persist($uid, $cid, $checksum);
+        $this->session->persist($uid, $cid, $checksum, $this->timestamp);
     }
 
 

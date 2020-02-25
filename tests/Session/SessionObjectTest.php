@@ -22,30 +22,56 @@ class SessionObjectTest extends TestCase
 
     public function testGetInfo()
     {
+        $data = [
+            'user' => 'abc',
+            'context' => 99,
+            'checksum' => 'xyz',
+            'timestamp' => strtotime('2020-01-01T00:00:00+00:00')
+        ];
+        $this->session['auth'] = $data + ['other' => 'q'];
+
+        $expected = $data;
+        $expected['timestamp'] = new \DateTimeImmutable('2020-01-01T00:00:00+00:00');
+
+        $info = $this->service->getInfo();
+        $this->assertEquals($expected, $info);
+    }
+
+    public function testGetInfoWithoutTimestamp()
+    {
         $data = ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz'];
         $this->session['auth'] = $data + ['other' => 'q'];
 
         $info = $this->service->getInfo();
-        $this->assertEquals($data, $info);
+        $this->assertEquals($data + ['timestamp' => null], $info);
     }
 
     public function testGetInfoDefaults()
     {
         $info = $this->service->getInfo();
-        $this->assertEquals(['user' => null, 'context' => null, 'checksum' => null], $info);
+        $this->assertEquals(['user' => null, 'context' => null, 'checksum' => null, 'timestamp' => null], $info);
     }
 
     public function testPersist()
     {
-        $this->service->persist('abc', 99, 'xyz');
+        $timestamp = new \DateTimeImmutable('2020-01-01T00:00:00+00:00');
+
+        $this->service->persist('abc', 99, 'xyz', $timestamp);
+
+        $expected = [
+            'user' => 'abc',
+            'context' => 99,
+            'checksum' => 'xyz',
+            'timestamp' => strtotime('2020-01-01T00:00:00+00:00')
+        ];
 
         $this->assertArrayHasKey('auth', $this->session->getArrayCopy());
-        $this->assertEquals($this->session['auth'], ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz']);
+        $this->assertEquals($expected, $this->session['auth']);
     }
 
     public function testClear()
     {
-        $this->session['auth'] = ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz'];
+        $this->session['auth'] = ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz', 'timestamp' => null];
 
         $this->service->clear();
         $this->assertArrayNotHasKey('auth', $this->session->getArrayCopy());
@@ -64,7 +90,7 @@ class SessionObjectTest extends TestCase
 
     public function testGetInfoForRequest()
     {
-        $data = ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz'];
+        $data = ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz', 'timestamp' => null];
 
         $requestSession = new \ArrayObject(['auth' => $data + ['other' => 'q']]);
         $service = $this->createServiceForRequest($requestSession);
@@ -77,18 +103,20 @@ class SessionObjectTest extends TestCase
 
     public function testPersistForRequest()
     {
-        $requestSession = new \ArrayObject(['user' => 'abc', 'context' => 99, 'checksum' => 'xyz']);
+        $requestSession = new \ArrayObject(['user' => 'abc', 'context' => 99, 'checksum' => 'xyz', 'timestamp' => null]);
         $service = $this->createServiceForRequest($requestSession);
 
-        $service->persist('abc', 99, 'xyz');
+        $service->persist('abc', 99, 'xyz', null);
+
+        $expected = ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz', 'timestamp' => null];
 
         $this->assertArrayHasKey('auth', $requestSession->getArrayCopy());
-        $this->assertEquals($requestSession['auth'], ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz']);
+        $this->assertEquals($expected, $requestSession['auth']);
     }
 
     public function testClearForRequest()
     {
-        $requestSession = new \ArrayObject(['user' => 'abc', 'context' => 99, 'checksum' => 'xyz']);
+        $requestSession = new \ArrayObject(['user' => 'abc', 'context' => 99, 'checksum' => 'xyz', 'timestamp' => null]);
         $service = $this->createServiceForRequest($requestSession);
 
         $service->clear();
@@ -98,7 +126,7 @@ class SessionObjectTest extends TestCase
 
     public function testForRequestWithoutSession()
     {
-        $data = ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz'];
+        $data = ['user' => 'abc', 'context' => 99, 'checksum' => 'xyz', 'timestamp' => null];
         $this->session['auth'] = $data + ['other' => 'q'];
 
         $request = $this->createMock(ServerRequestInterface::class);
