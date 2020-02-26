@@ -7,6 +7,7 @@ namespace Jasny\Auth\Authz;
 use Jasny\Auth\AuthException;
 use Jasny\Auth\AuthzInterface as Authz;
 use Jasny\Auth\ContextInterface as Context;
+use Jasny\Auth\User\PartiallyLoggedIn;
 use Jasny\Auth\UserInterface as User;
 use Jasny\Immutable;
 
@@ -27,12 +28,6 @@ trait StateTrait
      * rather than roles globally.
      */
     protected ?Context $context = null;
-
-    /**
-     * Check if the current user is partially logged in.
-     * Typically MFA verification is required in this state.
-     */
-    abstract public function isPartiallyLoggedIn(): bool;
 
     /**
      * Get a copy of the service for the given user.
@@ -85,6 +80,15 @@ trait StateTrait
     public function isLoggedIn(): bool
     {
         return $this->user !== null && !$this->isPartiallyLoggedIn();
+    }
+
+    /**
+     * Check if the current user is partially logged in.
+     * Typically this means MFA verification is required.
+     */
+    public function isPartiallyLoggedIn(): bool
+    {
+        return $this->user instanceof PartiallyLoggedIn;
     }
 
     /**

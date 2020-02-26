@@ -387,20 +387,24 @@ class Auth implements Authz
         $this->assertInitialized();
 
         if ($this->isLoggedOut()) {
-            throw new \RuntimeException("Unable to perform MFA verification: No user (partially) logged in.");
+            throw new \RuntimeException("Unable to perform MFA verification: No user (partially) logged in");
         }
 
-        $user = $this->user();
+        $authzUser = $this->user();
+        $user = $authzUser instanceof PartiallyLoggedIn ? $authzUser->getUser() : $authzUser;
 
         $verified = ($this->verifyMFA)($user, $code);
 
         if (!$verified) {
-            $this->logger->debug("Login failed: invalid MFA", ['user' => $user->getAuthId()]);
+            $this->logger->debug("MFA verification failed", ['user' => $user->getAuthId()]);
             throw new LoginException('Invalid MFA', LoginException::INVALID_CREDENTIALS);
         }
 
-        if ($user instanceof PartiallyLoggedIn) {
-            $this->loginAs($user->getUser());
+        $this->logger->debug("MFA verification successful", ['user' => $user->getAuthId()]);
+
+        // Fully login partially logged in user.
+        if ($user !== $authzUser) {
+            $this->loginAs($user);
         }
     }
 

@@ -12,6 +12,7 @@ use Jasny\Auth\Session\SessionInterface as Session;
 use Jasny\Auth\StorageInterface as Storage;
 use Jasny\Auth\User\PartiallyLoggedIn;
 use Jasny\Auth\UserInterface as User;
+use Jasny\PHPUnit\CallbackMockTrait;
 use Jasny\PHPUnit\PrivateAccessTrait;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -23,6 +24,7 @@ use Psr\Log\LoggerInterface;
  */
 class AuthTest extends TestCase
 {
+    use CallbackMockTrait;
     use PrivateAccessTrait;
 
     protected Auth $service;
@@ -421,10 +423,29 @@ class AuthTest extends TestCase
 
     public function testIsLoggedIn()
     {
-        $this->authz->expects($this->once())->method('isLoggedIn')
-            ->willReturn(true);
+        $this->authz->expects($this->exactly(2))->method('isLoggedIn')
+            ->willReturnOnConsecutiveCalls(true, false);
 
         $this->assertTrue($this->service->isLoggedIn());
+        $this->assertFalse($this->service->isLoggedIn());
+    }
+
+    public function testIsPartiallyLoggedIn()
+    {
+        $this->authz->expects($this->exactly(2))->method('isPartiallyLoggedIn')
+            ->willReturnOnConsecutiveCalls(true, false);
+
+        $this->assertTrue($this->service->isPartiallyLoggedIn());
+        $this->assertFalse($this->service->isPartiallyLoggedIn());
+    }
+
+    public function testIsLoggedOut()
+    {
+        $this->authz->expects($this->exactly(2))->method('isLoggedOut')
+            ->willReturnOnConsecutiveCalls(true, false);
+
+        $this->assertTrue($this->service->isLoggedOut());
+        $this->assertFalse($this->service->isLoggedOut());
     }
 
     public function testIs()
@@ -769,12 +790,13 @@ class AuthTest extends TestCase
         $this->service->logout();
     }
 
-    public function testLoginWithPartialLogin()
+    public function testPartialLogin()
     {
         $user = $this->createMock(User::class);
         $user->expects($this->once())->method('verifyPassword')
             ->with('pwd')
             ->willReturn(true);
+        $user->expects($this->any())->method('requiresMFA')->willReturn(true);
 
         $this->storage->expects($this->once())->method('fetchUserByUsername')
             ->with('john')
@@ -783,7 +805,6 @@ class AuthTest extends TestCase
         //<editor-fold desc="[prepare mocks]">
         $user->expects($this->any())->method('getAuthId')->willReturn('42');
         $user->expects($this->any())->method('getAuthChecksum')->willReturn('xyz');
-        $user->expects($this->any())->method('requiresMFA')->willReturn(true);
 
         $this->dispatcher->expects($this->once())->method('dispatch')
             ->with($this->callback(function ($event) use ($user) {
@@ -812,7 +833,75 @@ class AuthTest extends TestCase
         $this->assertSame($newAuthz, $this->service->authz());
     }
 
-    public function testMfa()
+    public function testPartialLoginAs()
+    {
+        $user = $this->createMock(User::class);
+        $user->expects($this->any())->method('requiresMFA')->willReturn(true);
+
+        //<editor-fold desc="[prepare mocks]">
+        $user->expects($this->any())->method('getAuthId')->willReturn('42');
+        $user->expects($this->any())->method('getAuthChecksum')->willReturn('xyz');
+
+        $this->dispatcher->expects($this->once())->method('dispatch')
+            ->with($this->callback(function ($event) use ($user) {
+                $this->assertInstanceOf(Event\PartialLogin::class, $event);
+                $this->assertSame($user, $event->user());
+                return true;
+            }))
+            ->willReturnArgument(0);
+
+        $this->storage->expects($this->never())->method('getContextForUser');
+
+        $this->logger->expects($this->once())->method('info')
+            ->with("Partial login", ['user' => '42']);
+
+        $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
+        $this->authz->expects($this->never())->method('user');
+
+        $newAuthz = $this->expectAuthzWithPartialLogin($user);
+
+        $this->session->expects($this->once())->method('persist')
+            ->with('#partial:42', null, 'xyz', $this->isInstanceOf(\DateTimeInterface::class));
+        //</editor-fold>
+
+        $this->service->loginAs($user);
+
+        $this->assertSame($newAuthz, $this->service->authz());
+    }
+
+    public function testCancelPartialLogin()
+    {
+        $user = $this->createMock(User::class);
+        $user->expects($this->once())->method('requiresMFA')->willReturn(true);
+
+        $this->dispatcher->expects($this->once())->method('dispatch')
+            ->with($this->callback(function ($event) {
+                $this->assertInstanceOf(Event\PartialLogin::class, $event);
+                $event->cancel('no good');
+                return true;
+            }))
+            ->willReturnArgument(0);
+
+        //<editor-fold desc="[prepare mocks]">
+        $user->expects($this->any())->method('getAuthId')->willReturn('42');
+        $user->expects($this->any())->method('getAuthChecksum')->willReturn('xyz');
+
+        $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
+        $this->authz->expects($this->never())->method('user');
+        $this->authz->expects($this->never())->method('forUser');
+        $this->authz->expects($this->never())->method('inContextOf');
+        $this->session->expects($this->never())->method('persist');
+
+        $this->expectException(LoginException::class);
+        $this->expectExceptionMessage('no good');
+        $this->expectExceptionCode(LoginException::CANCELLED);
+        //</editor-fold>
+
+        $this->service->loginAs($user);
+    }
+
+
+    public function testMfaWhenPartiallyLoggedIn()
     {
         $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
         $partial = new PartiallyLoggedIn($user);
@@ -823,8 +912,8 @@ class AuthTest extends TestCase
         $this->authz->expects($this->any())->method('isLoggedOut')->willReturn(false);
         $this->authz->expects($this->atLeastOnce())->method('user')->willReturn($partial);
 
-        $service = $this->service->withMFA(function($mfaUser, $mfaCode) use ($partial): bool  {
-            $this->assertSame($partial, $mfaUser);
+        $service = $this->service->withMFA(function($mfaUser, $mfaCode) use ($user): bool  {
+            $this->assertSame($user, $mfaUser);
             $this->assertSame("123890", $mfaCode);
 
             return true;
@@ -858,6 +947,101 @@ class AuthTest extends TestCase
 
         $this->assertInstanceOf(\DateTimeInterface::class, $service->time());
         $this->assertEqualsWithDelta(time(), $service->time()->getTimestamp(), 5);
+    }
+
+    public function testMfaWhenLoggedIn()
+    {
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
+
+        //<editor-fold desc="[prepare mocks]">
+        $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(true);
+        $this->authz->expects($this->any())->method('isPartiallyLoggedIn')->willReturn(false);
+        $this->authz->expects($this->any())->method('isLoggedOut')->willReturn(false);
+        $this->authz->expects($this->atLeastOnce())->method('user')->willReturn($user);
+
+        $this->setPrivateProperty($this->service, 'timestamp', new \DateTimeImmutable('2020-01-01T00:00:00+00:00'));
+
+        $service = $this->service->withMFA(function($mfaUser, $mfaCode) use ($user): bool  {
+            $this->assertSame($user, $mfaUser);
+            $this->assertSame("123890", $mfaCode);
+
+            return true;
+        });
+
+        $this->dispatcher->expects($this->never())->method('dispatch');
+
+        $this->logger->expects($this->once())->method('info')
+            ->with("MFA verification successful", ['user' => '42']);
+
+        $this->session->expects($this->never())->method('persist');
+        //</editor-fold>
+
+        $service->mfa("123890");
+
+        $this->assertSame($this->authz, $service->authz());
+        $this->assertEquals(new \DateTimeImmutable('2020-01-01T00:00:00+00:00'), $service->time());
+    }
+
+    public function testMfaWhenLoggedOut()
+    {
+        //<editor-fold desc="[prepare mocks]">
+        $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
+        $this->authz->expects($this->any())->method('isPartiallyLoggedIn')->willReturn(false);
+        $this->authz->expects($this->any())->method('isLoggedOut')->willReturn(true);
+        $this->authz->expects($this->never())->method('user');
+
+        $service = $this->service->withMFA($this->createCallbackMock($this->never()));
+        //</editor-fold>
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage("Unable to perform MFA verification: No user (partially) logged in");
+
+        $service->mfa("123890");
+    }
+
+    public function mfaUserProvider()
+    {
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
+        $partial = new PartiallyLoggedIn($user);
+
+        return [
+            [$partial, $user],
+            [$user, $user],
+        ];
+    }
+
+    /**
+     * @dataProvider mfaUserProvider
+     */
+    public function testMfaWithInvalidCode($authzUser, $user)
+    {
+        //<editor-fold desc="[prepare mocks]">
+        $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
+        $this->authz->expects($this->any())->method('isPartiallyLoggedIn')->willReturn(true);
+        $this->authz->expects($this->any())->method('isLoggedOut')->willReturn(false);
+        $this->authz->expects($this->atLeastOnce())->method('user')->willReturn($authzUser);
+
+        $service = $this->service->withMFA(function($mfaUser, $mfaCode) use ($user): bool  {
+            $this->assertSame($user, $mfaUser);
+            $this->assertSame("000000", $mfaCode);
+
+            return false;
+        });
+
+        $this->dispatcher->expects($this->never())->method('dispatch');
+        $this->storage->expects($this->never())->method('getContextForUser');
+
+        $this->logger->expects($this->once())->method('debug')
+            ->with("MFA verification failed", ['user' => '42']);
+
+        $this->session->expects($this->never())->method('persist');
+        //</editor-fold>
+
+        $this->expectException(LoginException::class);
+        $this->expectExceptionMessage('Invalid MFA');
+        $this->expectExceptionCode(LoginException::INVALID_CREDENTIALS);
+
+        $service->mfa("000000");
     }
 
 

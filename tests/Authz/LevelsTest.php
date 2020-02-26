@@ -4,10 +4,11 @@ namespace Jasny\Auth\Tests\Authz;
 
 use Jasny\Auth\AuthException;
 use Jasny\Auth\ContextInterface as Context;
+use Jasny\Auth\User\PartiallyLoggedIn;
 use Jasny\Auth\UserInterface as User;
 use Jasny\Auth\Authz\Levels;
 use Jasny\PHPUnit\ExpectWarningTrait;
-use PHPStan\Testing\TestCase;
+use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\MockObject\MockObject;
 
 /**
@@ -40,6 +41,8 @@ class LevelsTest extends TestCase
     public function testNoUser()
     {
         $this->assertFalse($this->authz->isLoggedIn());
+        $this->assertFalse($this->authz->isPartiallyLoggedIn());
+        $this->assertTrue($this->authz->isLoggedOut());
 
         $this->expectException(AuthException::class);
         $this->authz->user();
@@ -51,10 +54,28 @@ class LevelsTest extends TestCase
         $userAuthz = $this->authz->forUser($user);
 
         $this->assertTrue($userAuthz->isLoggedIn());
+        $this->assertFalse($userAuthz->isPartiallyLoggedIn());
+        $this->assertFalse($userAuthz->isLoggedOut());
+
         $this->assertFalse($this->authz->isLoggedIn());
 
         $this->assertNotSame($this->authz, $userAuthz);
         $this->assertSame($user, $userAuthz->user());
+    }
+
+    public function testPartiallyLoggedIn()
+    {
+        $user = $this->createConfiguredMock(User::class, ['getAuthRole' => 'user']);
+        $partial = new PartiallyLoggedIn($user);
+
+        $userAuthz = $this->authz->forUser($partial);
+
+        $this->assertFalse($userAuthz->isLoggedIn());
+        $this->assertTrue($userAuthz->isPartiallyLoggedIn());
+        $this->assertFalse($userAuthz->isLoggedOut());
+
+        $this->assertNotSame($this->authz, $userAuthz);
+        $this->assertSame($partial, $userAuthz->user());
     }
 
     public function testWithUnknownUserRole()

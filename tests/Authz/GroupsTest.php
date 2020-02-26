@@ -2,12 +2,10 @@
 
 namespace Jasny\Auth\Tests\Authz;
 
-use Jasny\Auth\ContextInterface as Context;
-use Jasny\Auth\UserInterface;
 use Jasny\Auth\UserInterface as User;
 use Jasny\Auth\Authz\Groups;
 use Jasny\PHPUnit\ExpectWarningTrait;
-use PHPStan\Testing\TestCase;
+use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\MockObject\MockObject;
 
 /**

@@ -124,15 +124,6 @@ class Groups implements Authz
 
 
     /**
-     * Check if the current user is partially logged in.
-     * Typically this means MFA verification is required.
-     */
-    public function isPartiallyLoggedIn(): bool
-    {
-        return $this->user instanceof PartiallyLoggedIn;
-    }
-
-    /**
      * Check if the current user is logged in and has specified role.
      */
     public function is(string $role): bool
