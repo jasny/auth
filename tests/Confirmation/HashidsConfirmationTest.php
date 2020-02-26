@@ -9,6 +9,7 @@ use Jasny\Auth\Confirmation\InvalidTokenException;
 use Jasny\Auth\StorageInterface as Storage;
 use Jasny\Auth\UserInterface as User;
 use Jasny\PHPUnit\CallbackMockTrait;
+use Jasny\PHPUnit\ExpectWarningTrait;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
@@ -19,6 +20,7 @@ use Psr\Log\LoggerInterface as Logger;
  */
 class HashidsConfirmationTest extends TestCase
 {
+    use ExpectWarningTrait;
     use CallbackMockTrait;
 
     protected const TOKEN = '57ZOXP4dxYhQ7Yqne191TvgvnAjxJasoybbr84enIV8oa1GEJqiYPx47gxm5CVa6Me0Mo';
@@ -69,6 +71,51 @@ class HashidsConfirmationTest extends TestCase
         $this->assertEquals(self::TOKEN, $token);
     }
 
+    public function testGetTokenWithCustomUidEncoding()
+    {
+        $storage = $this->createMock(Storage::class);
+        $storage->expects($this->never())->method($this->anything());
+
+        $hex = substr(self::STD_HEX, 0, -4) . '2a';
+
+        $hashids = $this->createMock(Hashids::class);
+        $hashids->expects($this->once())->method('encodeHex')
+            ->with($hex)
+            ->willReturn(self::TOKEN);
+
+        $encode = $this->createCallbackMock($this->once(), ['42'], '2a');
+        $decode = $this->createCallbackMock($this->never());
+
+        $confirm = (new HashidsConfirmation('secret', fn() => $hashids))
+            ->withUidEncoded($encode, $decode)
+            ->withStorage($storage)
+            ->withSubject('test');
+
+        $token = $confirm->getToken($this->user, new \DateTime('2020-01-01T12:00:00+00:00'));
+
+        $this->assertEquals(self::TOKEN, $token);
+    }
+
+    public function testGetTokenWithInvalidUid()
+    {
+        $storage = $this->createMock(Storage::class);
+        $storage->expects($this->never())->method($this->anything());
+
+        $hashids = $this->createMock(Hashids::class);
+        $hashids->expects($this->never())->method('encodeHex');
+
+        $encode = $this->createCallbackMock($this->once(), ['42'], false);
+        $decode = $this->createCallbackMock($this->never());
+
+        $confirm = (new HashidsConfirmation('secret', fn() => $hashids))
+            ->withUidEncoded($encode, $decode)
+            ->withStorage($storage)
+            ->withSubject('test');
+
+        $this->expectExceptionObject(new \RuntimeException("Failed to encode uid"));
+
+        $confirm->getToken($this->user, new \DateTime('2020-01-01T12:00:00+00:00'));
+    }
 
     protected function createService(string $hex, ?User $user = null): HashidsConfirmation
     {
@@ -104,6 +151,22 @@ class HashidsConfirmationTest extends TestCase
         $this->assertSame($this->user, $confirm->from(self::TOKEN));
     }
 
+    public function testFromWithCustomUidEncoding()
+    {
+        $hex = substr(self::STD_HEX, 0, -4) . '2a';
+
+        $encode = $this->createCallbackMock($this->never());
+        $decode = $this->createCallbackMock($this->once(), ['2a'], '42');
+
+        $confirm = $this->createService($hex, $this->user)
+            ->withUidEncoded($encode, $decode);
+
+        $this->logger->expects($this->once())->method('info')
+            ->with('Verified confirmation token', $this->expectedContext('42', '2020-01-01T12:00:00+00:00'));
+
+        $this->assertSame($this->user, $confirm->from(self::TOKEN));
+    }
+
     public function testFromDeletedUser()
     {
         $confirm = $this->createService(self::STD_HEX, null);
@@ -116,7 +179,7 @@ class HashidsConfirmationTest extends TestCase
 
         $confirm->from(self::TOKEN);
     }
-    
+
     public function testFromInvalidChecksum()
     {
         $hex = hash('sha256', '') . '20200101000000' . '3432';
@@ -150,7 +213,11 @@ class HashidsConfirmationTest extends TestCase
     {
         $hex = hash('sha256', '') . '20200101000000' . 'qq';
 
-        $confirm = $this->createService($hex);
+        $encode = $this->createCallbackMock($this->never());
+        $decode = $this->createCallbackMock($this->once(), ['qq'], false);
+
+        $confirm = $this->createService($hex)
+            ->withUidEncoded($encode, $decode);
 
         $this->expectExceptionObject(new InvalidTokenException("Invalid confirmation token"));
 
@@ -162,7 +229,7 @@ class HashidsConfirmationTest extends TestCase
 
     public function testFromTokenWithInvalidExpireDate()
     {
-        $hex = hash('sha256', '') . '99999999000000' . '2a';
+        $hex = hash('sha256', '') . '99999999000000' . '3432';
 
         $confirm = $this->createService($hex);
 

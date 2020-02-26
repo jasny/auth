@@ -40,6 +40,28 @@ characters. A short secret might be guessed through brute forcing.
 
 It's recommended to configure the secret through an environment variable and not put it in your code.
 
+#### Custom encoding of uid
+
+By default user IDs are treated as a (binary) string. Encoding them simply takes the byte values and convert it into a
+hexidecimal value using `unpack('H*', $uid)`.
+
+However, if the uid has a specific format (eg an auto-incrementing integer or a UUID) it can be encoded more
+efficiently, resulting in a shorter hashid token.
+
+```php
+use Ramsey\Uuid\Uuid;
+
+$encodeUuid = function (string $uid) {
+    return bin2hex(Uuid::fromString($uid)->getBytes());
+}
+$decodeUuid = function (string $hex) {
+    return Uuid::fromBytes(hex2bin($hex))->toString();
+}
+
+$confirmation = (new HashidsConfirmation(getenv('AUTH_CONFIRMATION_SECRET')))
+    ->withUidEncoded($encodeUuid, $decodeUuid);
+```
+
 ### Examples
 
 #### Signup confirmation
