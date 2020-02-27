@@ -122,16 +122,6 @@ class Levels implements AuthzInterface
             return;
         }
 
-        $this->userLevel = $this->getUserLevelFromRole();
-    }
-
-    /**
-     * Get the user level from the auth role of the user.
-     *
-     * @throws \DomainException for unknown level names
-     */
-    private function getUserLevelFromRole(): int
-    {
         $uid = $this->user->getAuthId();
 
         $role = i\type_check(
@@ -144,6 +134,6 @@ class Levels implements AuthzInterface
             throw new \DomainException("Authorization level '$role' isn't defined (uid:$uid)");
         }
 
-        return is_string($role) ? $this->levels[$role] : (int)$role;
+        $this->userLevel = is_string($role) ? $this->levels[$role] : (int)$role;
     }
 }
