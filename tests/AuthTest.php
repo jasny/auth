@@ -931,6 +931,8 @@ class AuthTest extends TestCase
 
         $this->storage->expects($this->once())->method('getContextForUser')->willReturn(null);
 
+        $this->logger->expects($this->once())->method('debug')
+            ->with("MFA verification successful", ['user' => '42']);
         $this->logger->expects($this->once())->method('info')
             ->with("Login successful", ['user' => '42']);
 
@@ -970,7 +972,7 @@ class AuthTest extends TestCase
 
         $this->dispatcher->expects($this->never())->method('dispatch');
 
-        $this->logger->expects($this->once())->method('info')
+        $this->logger->expects($this->once())->method('debug')
             ->with("MFA verification successful", ['user' => '42']);
 
         $this->session->expects($this->never())->method('persist');

@@ -119,14 +119,14 @@ class LevelsTest extends TestCase
     public function roleProvider()
     {
         return [
-            ['user', ['user' => true, 'mod' => false, 'admin' => false]],
-            ['mod', ['user' => true, 'mod' => true, 'admin' => false]],
-            ['admin', ['user' => true, 'mod' => true, 'admin' => true]],
+            'user'  => ['user', ['user' => true, 'mod' => false, 'admin' => false]],
+            'mod'   => ['mod', ['user' => true, 'mod' => true, 'admin' => false]],
+            'admin' => ['admin', ['user' => true, 'mod' => true, 'admin' => true]],
 
-            [1, ['user' => true, 'mod' => false, 'admin' => false]],
-            [10, ['user' => true, 'mod' => true, 'admin' => false]],
-            [50, ['user' => true, 'mod' => true, 'admin' => false]],
-            [500, ['user' => true, 'mod' => true, 'admin' => true]]
+            '1'   => [1, ['user' => true, 'mod' => false, 'admin' => false]],
+            '10'  => [10, ['user' => true, 'mod' => true, 'admin' => false]],
+            '50'  => [50, ['user' => true, 'mod' => true, 'admin' => false]],
+            '500' => [500, ['user' => true, 'mod' => true, 'admin' => true]]
         ];
     }
     

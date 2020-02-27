@@ -27,9 +27,9 @@ class HashidsConfirmation implements ConfirmationInterface
     protected \Closure $createHashids;
     protected Storage $storage;
 
-    /** @var \Closure&callable(string $uid):string|false */
+    /** @var \Closure&callable(string $uid):(string|false) */
     protected \Closure $encodeUid;
-    /** @var \Closure&callable(string $uid):string|false */
+    /** @var \Closure&callable(string $uid):(string|false) */
     protected \Closure $decodeUid;
 
     protected Logger $logger;

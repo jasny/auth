@@ -61,7 +61,7 @@ final class PartiallyLoggedIn implements UserInterface
     /**
      * @inheritDoc
      */
-    public function getAuthRole(?ContextInterface $context = null): string
+    public function getAuthRole(?ContextInterface $context = null)
     {
         return $this->user->getAuthRole($context);
     }
@@ -69,7 +69,7 @@ final class PartiallyLoggedIn implements UserInterface
     /**
      * @inheritDoc
      */
-    public function requiresMFA(): bool
+    public function requiresMfa(): bool
     {
         return true;
     }

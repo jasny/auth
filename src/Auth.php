@@ -327,7 +327,7 @@ class Auth implements Authz
      */
     private function loginUser(User $user): void
     {
-        if ($user->requiresMFA()) {
+        if ($user->requiresMfa()) {
             $this->partialLoginUser($user);
             return;
         }

@@ -66,7 +66,7 @@ class PartiallyLoggedInTest extends TestCase
         $this->assertEquals('abc', $this->wrapper->getAuthChecksum());
     }
 
-    public function testRequiresMFA()
+    public function testRequiresMfa()
     {
         $this->user->expects($this->never())->method('requiresMFA');
 

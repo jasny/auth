@@ -87,7 +87,7 @@ class User implements Auth\UserInterface
         return $this->accessLevel;
     }
 
-    public function requiresMFA() : bool
+    public function requiresMfa() : bool
     {
         return false;
     }

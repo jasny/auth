@@ -10,8 +10,8 @@ namespace Jasny\Auth\Session;
 trait GetInfoTrait
 {
     /**
-     * @param array|\ArrayAccess $data
-     * @return array
+     * @param array<string,mixed>|\ArrayAccess<string,mixed> $data
+     * @return array{user:mixed,context:mixed,checksum:string|null,timestamp:\DateTimeInterface|null}
      */
     private function getInfoFromData($data): array
     {

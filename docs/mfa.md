@@ -1,7 +1,7 @@
 MFA (Multi-factor authentication)
 ---
 
-This library support a two step verification process. The `User` object has a method `requiresMFA()`, which is called
+This library support a two step verification process. The `User` object has a method `requiresMfa()`, which is called
 during login. If this method returns `true`, the user will be partially logged in, requiring mfa verification to
 complete to login.
 
@@ -19,7 +19,7 @@ class User implements UserInterface
     /** One time password secret for multi factor authentication (MFA) */
     public ?string $otpSecret = null;
 
-    public requiresMFA(): bool
+    public requiresMfa(): bool
     {
         return $this->otpSecret !== null;
     }

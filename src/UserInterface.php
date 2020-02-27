@@ -40,5 +40,5 @@ interface UserInterface
     /**
      * User requires Multi Factor Authentication.
      */
-    public function requiresMFA(): bool;
+    public function requiresMfa(): bool;
 }
