@@ -1007,8 +1007,8 @@ class AuthTest extends TestCase
         $partial = new PartiallyLoggedIn($user);
 
         return [
-            [$partial, $user],
-            [$user, $user],
+            'partial' => [$partial, $user],
+            'full'    => [$user, $user],
         ];
     }
 

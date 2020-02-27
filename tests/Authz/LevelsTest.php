@@ -123,10 +123,10 @@ class LevelsTest extends TestCase
             'mod'   => ['mod', ['user' => true, 'mod' => true, 'admin' => false]],
             'admin' => ['admin', ['user' => true, 'mod' => true, 'admin' => true]],
 
-            '1'   => [1, ['user' => true, 'mod' => false, 'admin' => false]],
-            '10'  => [10, ['user' => true, 'mod' => true, 'admin' => false]],
-            '50'  => [50, ['user' => true, 'mod' => true, 'admin' => false]],
-            '500' => [500, ['user' => true, 'mod' => true, 'admin' => true]]
+            'level 1'   => [1, ['user' => true, 'mod' => false, 'admin' => false]],
+            'level 10'  => [10, ['user' => true, 'mod' => true, 'admin' => false]],
+            'level 50'  => [50, ['user' => true, 'mod' => true, 'admin' => false]],
+            'level 500' => [500, ['user' => true, 'mod' => true, 'admin' => true]]
         ];
     }
     
