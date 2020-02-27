@@ -293,6 +293,11 @@ class Auth implements Authz
             throw new \LogicException("Already logged in");
         }
 
+        if ($user->requiresMfa()) {
+            $this->partialLoginUser($user);
+            return;
+        }
+
         $this->loginUser($user);
     }
 
@@ -316,6 +321,11 @@ class Auth implements Authz
             throw new LoginException('Invalid credentials', LoginException::INVALID_CREDENTIALS);
         }
 
+        if ($user->requiresMfa()) {
+            $this->partialLoginUser($user);
+            return;
+        }
+
         $this->loginUser($user);
     }
 
@@ -327,15 +337,16 @@ class Auth implements Authz
      */
     private function loginUser(User $user): void
     {
-        if ($user->requiresMfa()) {
-            $this->partialLoginUser($user);
-            return;
-        }
-
         $event = new Event\Login($this, $user);
         $this->dispatcher->dispatch($event);
 
         if ($event->isCancelled()) {
+            if ($this->isPartiallyLoggedIn()) {
+                $this->authz = $this->authz->forUser(null)->inContextOf(null);
+                $this->timestamp = null;
+                $this->updateSession();
+            }
+
             $this->logger->info("Login failed: " . $event->getCancellationReason(), ['user' => $user->getAuthId()]);
             throw new LoginException($event->getCancellationReason(), LoginException::CANCELLED);
         }
@@ -372,7 +383,6 @@ class Auth implements Authz
 
         // Beware; the `authz` property may have been changed via the partial login event.
         $this->authz = $this->authz->forUser(new PartiallyLoggedIn($user));
-
         $this->timestamp = new \DateTimeImmutable();
         $this->updateSession();
 
@@ -404,7 +414,7 @@ class Auth implements Authz
 
         // Fully login partially logged in user.
         if ($user !== $authzUser) {
-            $this->loginAs($user);
+            $this->loginUser($user);
         }
     }
 
@@ -422,6 +432,8 @@ class Auth implements Authz
         $user = $this->authz->user();
 
         $this->authz = $this->authz->forUser(null)->inContextOf(null);
+        $this->timestamp = null;
+
         $this->updateSession();
 
         $this->logger->debug("Logout", ['user' => $user->getAuthId()]);

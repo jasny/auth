@@ -8,6 +8,13 @@ complete to login.
 Any MFA method can be used as long as it include verifying some sort of code or signature. Verification is delegated
 to a callback that's configured using the `withMFA()` method. 
 
+#### Event
+
+In case of partial login, a `PartialLogin` event is dispatched, rather than a `Login` event. The events are similar. The
+`PartialLogin` event can be cancelled, which will trigger a `LoginException`.
+
+### One time password (example)
+
 A good method is using time based one-time passwords according to [RFC 6238](http://tools.ietf.org/html/rfc6238) (TOTP),
 compatible with Google Authenticator. This example uses the [OTPHP](https://github.com/Spomky-Labs/otphp) library.
 
@@ -37,12 +44,7 @@ $auth = (new Auth(...))
 
 _If the MFA verification callback is not configured, MFA verification will always fail._
 
-Other methods of verification might be an SMS OTP, [WebAuthn](https://webauthn.guide/), or email link.
-
-#### Event
-
-In case of partial login, a `PartialLogin` event is dispatched, rather than a `Login` event. The events are similar. The
-`PartialLogin` event can be cancelled, which will trigger a `LoginException`.
+Other methods of verification might be an SMS OTP, [WebAuthn](https://webauthn.guide/), or an email link.
 
 #### Initializing OTP
 
@@ -57,7 +59,7 @@ $user->otpSecret = base_convert(bin2hex(random_bytes(8)), 16, 36); // 8 random b
 $totp = TOTP::create($user->otpSecret); // New TOTP with custom secret
 $totp->setLabel($user->email); // The label (string)
 
-$totp->getProvisioningUri(); // Will return otpauth://totp/user@example.com?secret=ylsqrtotfc2r
+$totp->getProvisioningUri(); // Will return "otpauth://totp/user@example.com?secret=ylsqrtotfc2r"
 ``` 
 
 ### MFA verification
@@ -68,9 +70,11 @@ The `mfa` method will perform the second verification step and login the user fu
 $auth->mfa($_POST['code']);
 ```
 
-If the verification fails a `LoginException` will be thrown with code `LoginException::INVALID_CREDENTIALS`.
+If the verification fails, a `LoginException` will be thrown with code `LoginException::INVALID_CREDENTIALS`.
+The user will stay (partially) logged in, even if MFA verification fails. You may want to logout manually.
 
-If the verification succeeds a `Login` event is dispatched, which may still be cancelled.
+If the verification succeeds, a `Login` event is dispatched, which may still be cancelled. If cancelled, the user is
+logged out.
 
 MFA verification may also be done for a fully logged in user.
 

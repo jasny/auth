@@ -767,6 +767,8 @@ class AuthTest extends TestCase
         $this->logger->expects($this->once())->method('debug')
             ->with("Logout", ['user' => '42']);
 
+        $this->setPrivateProperty($this->service, 'timestamp', new \DateTimeImmutable('2020-01-01T00:00:00+00:00'));
+
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(true);
         $this->authz->expects($this->any())->method('user')->willReturn($user);
         $this->session->expects($this->once())->method('clear');
@@ -777,6 +779,7 @@ class AuthTest extends TestCase
         $this->service->logout();
 
         $this->assertSame($newAuthz, $this->service->authz());
+        $this->assertNull($this->service->time());
     }
 
     public function testLogoutTwice()
@@ -1044,6 +1047,46 @@ class AuthTest extends TestCase
         $this->expectExceptionCode(LoginException::INVALID_CREDENTIALS);
 
         $service->mfa("000000");
+    }
+
+    public function testMfaCancelLogin()
+    {
+        $user = $this->createConfiguredMock(User::class, ['getAuthId' => '42', 'getAuthChecksum' => 'abc']);
+        $partial = new PartiallyLoggedIn($user);
+
+        $service = $this->service->withMFA(function($mfaUser, $mfaCode) use ($user): bool  {
+            $this->assertSame($user, $mfaUser);
+            $this->assertSame("123890", $mfaCode);
+
+            return true;
+        });
+
+        $this->dispatcher->expects($this->once())->method('dispatch')
+            ->with($this->callback(function (Event\Login $event) {
+                $event->cancel('no good');
+                return true;
+            }))
+            ->willReturnArgument(0);
+
+        //<editor-fold desc="[prepare mocks]">
+        $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
+        $this->authz->expects($this->any())->method('isPartiallyLoggedIn')->willReturn(true);
+        $this->authz->expects($this->any())->method('isLoggedOut')->willReturn(false);
+        $this->authz->expects($this->atLeastOnce())->method('user')->willReturn($partial);
+
+        $newAuthz = $this->expectInitAuthz(null, null);
+        //</editor-fold>
+
+        try {
+            $service->mfa("123890");
+            $this->fail("LoginException not thrown");
+        } catch (LoginException $exception) {
+            $this->assertEquals('no good', $exception->getMessage());
+            $this->assertEquals(LoginException::CANCELLED, $exception->getCode());
+        }
+
+        $this->assertSame($newAuthz, $service->authz());
+        $this->assertNull($service->time());
     }
 
 
