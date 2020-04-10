@@ -1182,7 +1182,7 @@ class AuthTest extends TestCase
         $this->assertSame($this->authz, $this->service->authz()); // Not modified
     }
 
-    public function testForContext()
+    public function testInContextOf()
     {
         $context = $this->createMock(Context::class);
         $newAuthz = $this->createMock(Authz::class);
@@ -1192,6 +1192,18 @@ class AuthTest extends TestCase
             ->willReturn($newAuthz);
 
         $this->assertSame($newAuthz, $this->service->inContextOf($context));
+        $this->assertSame($this->authz, $this->service->authz()); // Not modified
+    }
+
+    public function testOutOfContext()
+    {
+        $newAuthz = $this->createMock(Authz::class);
+
+        $this->authz->expects($this->once())->method('inContextOf')
+            ->with(null)
+            ->willReturn($newAuthz);
+
+        $this->assertSame($newAuthz, $this->service->outOfContext());
         $this->assertSame($this->authz, $this->service->authz()); // Not modified
     }
 

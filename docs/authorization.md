@@ -64,6 +64,11 @@ Returns a copy of the `Authz` service with the given user, in the current contex
 
 Returns a copy of the `Authz` service with the current user, in the given context.
 
+#### outOfContext
+
+    Auth::outOfContext(): Authz
+
+Alias of `Auth::inContextOf(null)`.
 
 ### Immutable state
 

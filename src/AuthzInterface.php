@@ -37,6 +37,13 @@ interface AuthzInterface
     public function inContextOf(?Context $context): self;
 
     /**
+     * Alias of `inContextOf(null)`.
+     *
+     * @return AuthzInterface
+     */
+    public function outOfContext(): self;
+
+    /**
      * Get a copy, recalculating the authz role of the user.
      *
      * @return AuthzInterface

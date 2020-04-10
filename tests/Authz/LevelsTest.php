@@ -3,6 +3,7 @@
 namespace Jasny\Auth\Tests\Authz;
 
 use Jasny\Auth\AuthException;
+use Jasny\Auth\AuthzInterface;
 use Jasny\Auth\ContextInterface as Context;
 use Jasny\Auth\User\PartiallyLoggedIn;
 use Jasny\Auth\UserInterface as User;
@@ -98,7 +99,7 @@ class LevelsTest extends TestCase
         $this->authz = $this->authz->forUser($user);
     }
 
-    public function testContext()
+    public function testInContextOf()
     {
         $this->assertNull($this->authz->context());
 
@@ -108,6 +109,20 @@ class LevelsTest extends TestCase
         $this->assertNotSame($this->authz, $contextAuthz);
         $this->assertNull($this->authz->context());
         $this->assertSame($context, $contextAuthz->context());
+
+        return $contextAuthz;
+    }
+
+    /**
+     * @depends testInContextOf
+     */
+    public function testOutOfContext(AuthzInterface $contextAuthz)
+    {
+        $noContextAuthz = $contextAuthz->outOfContext();
+
+        $this->assertNotSame($contextAuthz, $noContextAuthz);
+        $this->assertNotNull($contextAuthz->context());
+        $this->assertNull($noContextAuthz->context());
     }
 
     

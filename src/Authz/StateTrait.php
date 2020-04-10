@@ -53,6 +53,16 @@ trait StateTrait
     }
 
     /**
+     * Alias of `inContextOf(null)`.
+     *
+     * @return static&Authz
+     */
+    final public function outOfContext(): Authz
+    {
+        return $this->inContextOf(null);
+    }
+
+    /**
      * Get current authenticated user.
      *
      * @throws AuthException if no user is logged in.

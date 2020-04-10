@@ -512,6 +512,14 @@ class Auth implements Authz
         return $this->authz->inContextOf($context);
     }
 
+    /**
+     * Alias of `inContextOf(null)`.
+     */
+    final public function outOfContext(): Authz
+    {
+        return $this->inContextOf(null);
+    }
+
 
     /**
      * Get service to create or validate confirmation token.
