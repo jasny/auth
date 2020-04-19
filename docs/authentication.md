@@ -78,6 +78,22 @@ $auth = (new Auth($levels, new AuthStorage()))
     ->withEventDispatcher(new EventDispatcher($listeners));
 ```
 
+#### Session fixation
+
+In a [session fixation attack](https://en.wikipedia.org/wiki/Session_fixation), an attacker gets hold of user's session id
+and keeps using it. In order to mitigate such an attack, the session id should be regenerated on login and the session
+should be destroyed on logout.
+
+```php
+$listeners = (new ListenerProvider())
+    ->withListener(function(Event\Login $login): void {
+        session_regenerate_id();
+    })
+    ->withListener(function(Event\Logout $logout): void {
+        session_destroy();
+    });
+```
+
 ### Recalc
 
 Recalculate the authz roles and store the current auth information in the session.
