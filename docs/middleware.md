@@ -1,4 +1,4 @@
-Access control (middleware)
+Middleware for Access control
 ---
 
 You can apply access control manually using the `is()` method. Alteratively, if you're using a PSR-7 compatible router,
