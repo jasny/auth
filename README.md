@@ -65,7 +65,8 @@ $auth->initialize();
 Documentation
 ---
 
-* [Setup](docs/sessions.md)
+* [Setup](docs/setup.md)
+* [Sessions](docs/sessions.md)
 * [Authentication](docs/authentication.md)
 * [Context](docs/context.md)
 * [Authorization](docs/authorization.md)
