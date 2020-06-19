@@ -38,12 +38,12 @@ $auth->initialize();
 Documentation
 ---
 
-* [Setup](docs/setup.md)
-* [Authentication](docs/authentication.md)
-* [Context](docs/context.md)
-* [Authorization](docs/authorization.md)
-* [Sessions](docs/sessions.md)
-* [Middleware](docs/middleware.md) (for access control)
-* [Multi-factor authentication](docs/mfa.md)
-* [Confirmation](docs/confirmation.md) (eg. forgot password)
-* [Logging](docs/logging.md)
+* [Setup](setup.md)
+* [Authentication](authentication.md)
+* [Context](context.md)
+* [Authorization](authorization.md)
+* [Sessions](sessions.md)
+* [Middleware](middleware.md) (for access control)
+* [Multi-factor authentication](mfa.md)
+* [Confirmation](confirmation.md) (eg. forgot password)
+* [Logging](logging.md)
