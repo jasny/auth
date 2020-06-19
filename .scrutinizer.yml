@@ -15,10 +15,9 @@ build:
       tests:
         override:
             - phpcs-run src
-            -
-                command: vendor/bin/phpstan analyze --error-format=checkstyle | sed '/^\s*$/d' > phpstan-checkstyle.xml
-                analysis:
-                    file: phpstan-checkstyle.xml
-                    format: 'general-checkstyle'
+            - command: php -d memory_limit=4G vendor/bin/phpstan analyze --error-format=checkstyle | sed '/^\s*$/d' > phpstan-checkstyle.xml
+              analysis:
+                file: phpstan-checkstyle.xml
+                format: 'general-checkstyle'
             - php-scrutinizer-run
 
