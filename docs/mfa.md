@@ -37,8 +37,8 @@ class User implements UserInterface
 use OTPHP\TOTP;
 
 $auth = (new Auth(...))
-    ->withMfa(static function(User $user, string $code): bool {
-        return TOPT::create($user->otpSecret)->verify($code);
+    ->withMFA(static function(User $user, string $code): bool {
+        return TOTP::create($user->otpSecret)->verify($code);
     });
 ```
 
