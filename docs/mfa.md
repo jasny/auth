@@ -52,9 +52,10 @@ Since Jasny Auth is agnostic towards the method of MFA, initializing OTP is outs
 follow the instructions of the library you're using. This is an example using OTPHP; 
 
 ```php
+use ParagonIE\ConstantTime\Base32;
 use OTPHP\TOTP;
 
-$user->otpSecret = base_convert(bin2hex(random_bytes(8)), 16, 36); // 8 random bytes as alphanumeric string
+$user->otpSecret = Base32::encode(random_bytes(16)); // Secret must be base32 encoded
 
 $totp = TOTP::create($user->otpSecret); // New TOTP with custom secret
 $totp->setLabel($user->email); // The label (string)
