@@ -60,7 +60,7 @@ $user->otpSecret = Base32::encode(random_bytes(16)); // Secret must be base32 en
 $totp = TOTP::create($user->otpSecret); // New TOTP with custom secret
 $totp->setLabel($user->email); // The label (string)
 
-$totp->getProvisioningUri(); // Will return "otpauth://totp/user@example.com?secret=ylsqrtotfc2r"
+$totp->getProvisioningUri(); // Will return "otpauth://totp/user@example.com?secret=JBSWY3DPEHPK3PXP"
 ``` 
 
 ### MFA verification
