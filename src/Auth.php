@@ -48,7 +48,7 @@ class Auth implements Authz
     protected bool $forMultipleRequests = false;
 
     /** @var \Closure&callable(User $user, string $code):bool */
-    protected \Closure $verifyMFA;
+    protected \Closure $verifyMfa;
 
     /**
      * Auth constructor.
@@ -62,7 +62,7 @@ class Auth implements Authz
         // Set default services
         $this->dispatcher = self::dummyDispatcher();
         $this->logger = new NullLogger();
-        $this->verifyMFA = fn() => false;
+        $this->verifyMfa = fn() => false;
     }
 
     /**
@@ -105,9 +105,9 @@ class Auth implements Authz
      * @param callable $verify  Callback to verify MFA.
      * @return static
      */
-    public function withMFA(callable $verify): self
+    public function withMfa(callable $verify): self
     {
-        return $this->withProperty('verifyMFA', \Closure::fromCallable($verify));
+        return $this->withProperty('verifyMfa', \Closure::fromCallable($verify));
     }
 
 
@@ -403,7 +403,7 @@ class Auth implements Authz
         $authzUser = $this->user();
         $user = $authzUser instanceof PartiallyLoggedIn ? $authzUser->getUser() : $authzUser;
 
-        $verified = ($this->verifyMFA)($user, $code);
+        $verified = ($this->verifyMfa)($user, $code);
 
         if (!$verified) {
             $this->logger->debug("MFA verification failed", ['user' => $user->getAuthId()]);

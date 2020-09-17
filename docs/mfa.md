@@ -6,7 +6,7 @@ during login. If this method returns `true`, the user will be partially logged i
 complete to login.
 
 Any MFA method can be used as long as it include verifying some sort of code or signature. Verification is delegated
-to a callback that's configured using the `withMFA()` method. 
+to a callback that's configured using the `withMfa()` method. 
 
 A good method is using time based one-time passwords according to [RFC 6238](http://tools.ietf.org/html/rfc6238) (TOTP),
 compatible with Google Authenticator.
@@ -32,7 +32,7 @@ composer require endroid/qr-code
 use OTPHP\TOTP;
 
 $auth = (new Auth(...))
-    ->withMFA(static function(User $user, string $code): bool {
+    ->withMfa(static function(User $user, string $code): bool {
         return TOTP::create($user->otpSecret)->verify($code);
     });
 ```
