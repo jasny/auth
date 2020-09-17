@@ -425,19 +425,23 @@ class Auth implements Authz
     {
         $this->assertInitialized();
 
-        if (!$this->authz()->isLoggedIn()) {
+        $authz = $this->authz();
+
+        if (!$authz->isLoggedIn() && !$authz->isPartiallyLoggedIn()) {
             return;
         }
-
-        $user = $this->authz->user();
 
         $this->authz = $this->authz->forUser(null)->inContextOf(null);
         $this->timestamp = null;
 
         $this->updateSession();
 
-        $this->logger->debug("Logout", ['user' => $user->getAuthId()]);
-        $this->dispatcher->dispatch(new Event\Logout($this, $user));
+        if ($authz->isPartiallyLoggedIn()) {
+            $this->logger->debug("Abort partial login", ['user' => $authz->user()->getAuthId()]);
+        } else {
+            $this->logger->debug("Logout", ['user' => $authz->user()->getAuthId()]);
+            $this->dispatcher->dispatch(new Event\Logout($this, $authz->user()));
+        }
     }
 
     /**

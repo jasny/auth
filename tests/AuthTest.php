@@ -770,6 +770,7 @@ class AuthTest extends TestCase
         $this->setPrivateProperty($this->service, 'timestamp', new \DateTimeImmutable('2020-01-01T00:00:00+00:00'));
 
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(true);
+        $this->authz->expects($this->any())->method('isPartiallyLoggedIn')->willReturn(false);
         $this->authz->expects($this->any())->method('user')->willReturn($user);
         $this->session->expects($this->once())->method('clear');
         //</editor-fold>
@@ -785,6 +786,7 @@ class AuthTest extends TestCase
     public function testLogoutTwice()
     {
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
+        $this->authz->expects($this->any())->method('isPartiallyLoggedIn')->willReturn(false);
         $this->authz->expects($this->never())->method('user');
         $this->authz->expects($this->never())->method('forUser');
         $this->authz->expects($this->never())->method('inContextOf');
@@ -793,6 +795,33 @@ class AuthTest extends TestCase
         $this->service->logout();
     }
 
+    public function testLogoutPartialLogin()
+    {
+        //<editor-fold desc="[prepare mocks]">
+        $user = $this->createMock(User::class);
+        $user->expects($this->any())->method('getAuthId')->willReturn('42');
+
+        $this->dispatcher->expects($this->never())->method('dispatch');
+
+        $this->logger->expects($this->once())->method('debug')
+            ->with("Abort partial login", ['user' => '42']);
+
+        $this->setPrivateProperty($this->service, 'timestamp', new \DateTimeImmutable('2020-01-01T00:00:00+00:00'));
+
+        $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
+        $this->authz->expects($this->any())->method('isPartiallyLoggedIn')->willReturn(true);
+        $this->authz->expects($this->any())->method('user')->willReturn($user);
+        $this->session->expects($this->once())->method('clear');
+        //</editor-fold>
+
+        $newAuthz = $this->expectInitAuthz(null, null);
+
+        $this->service->logout();
+
+        $this->assertSame($newAuthz, $this->service->authz());
+        $this->assertNull($this->service->time());
+    }
+    
     public function testPartialLogin()
     {
         $user = $this->createMock(User::class);
@@ -902,7 +931,6 @@ class AuthTest extends TestCase
 
         $this->service->loginAs($user);
     }
-
 
     public function testMfaWhenPartiallyLoggedIn()
     {
