@@ -124,6 +124,7 @@ check the authentication timestamp to limit the time between the first and secon
 
 ```php
 if ($auth->time() < new \DateTime("-5 minutes")) {
+    $auth->logout();
     header('Location: /login', true, 303);
     exit();
 }
