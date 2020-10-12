@@ -79,6 +79,8 @@ header('Content-Type: '.$qrCode->getContentType());
 echo $qrCode->writeString();
 ``` 
 
+_It's good practise to verify the OTP code once to make sure the user has added it correctly to their app, before saving the otp secret to the DB. This requires temporarily storing the secret in a session. It isn't done in this example._
+
 ### Checking partial login
 
 If the user has logged in with username and password and requires MFA verification, it will be partially
