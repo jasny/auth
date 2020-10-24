@@ -242,8 +242,9 @@ class HashidsConfirmation implements ConfirmationInterface
     protected function verifyChecksum(string $checksum, User $user, CarbonImmutable $expire, array $context): void
     {
         $expected = $this->calcChecksum($user, $expire);
+        $expectedOld = $this->calcOldChecksum($user, $expire);
 
-        if ($checksum === $expected) {
+        if ($checksum === $expected || $checksum === $expectedOld) {
             return;
         }
 
@@ -278,10 +279,27 @@ class HashidsConfirmation implements ConfirmationInterface
             CarbonImmutable::instance($expire)->utc()->format('YmdHis'),
             $user->getAuthId(),
             $user->getAuthChecksum(),
-            $this->secret
         ];
 
-        return hash('sha256', join("\0", $parts));
+        return hash_hmac('sha256', join("\0", $parts), $this->secret);
+    }
+
+    /**
+     * Calculate confirmation checksum, before switching to hmac.
+     * Temporary so existing confirmation tokens will continue working. Will be removed.
+     *
+     * @deprecated
+     */
+    protected function calcOldChecksum(User $user, \DateTimeInterface $expire): string
+    {
+        $parts = [
+            CarbonImmutable::instance($expire)->utc()->format('YmdHis'),
+            $user->getAuthId(),
+            $user->getAuthChecksum(),
+            $this->secret,
+        ];
+
+        return hash_hmac('sha256', join("\0", $parts));
     }
 
 
