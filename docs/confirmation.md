@@ -23,7 +23,8 @@ use Jasny\Auth\Auth;
 use Jasny\Auth\Authz;
 use Jasny\Auth\Confirmation\HashidsConfirmation;
 
-$confirmation = new HashidsConfirmation(getenv('AUTH_CONFIRMATION_SECRET'));
+$secret = base64_decode(getenv('AUTH_CONFIRMATION_SECRET')); // Secret is a base64 encoded random 32 byte string
+$confirmation = new HashidsConfirmation($secret);
 
 $levels = new Authz\Levels(['user' => 1, 'admin' => 20]);
 $auth = new Auth($levels, new AuthStorage(), $confirmation);
@@ -36,7 +37,9 @@ id and expire date are obfuscated for a casual user, a hacker might be able to e
 
 The token contains a SHA-256 checksum. This checksum includes a confirmation secret. To keep others from generating
 tokens, the a strong secret must be used. Make sure the confirmation secret is sufficiently long, like 32 random
-characters. A short secret might be guessed through brute forcing.
+characters. A short secret might be guessed through brute forcing. Generating a strong secret can be done by running
+
+    php -r 'echo base64_encode(random_bytes(32));'
 
 It's recommended to configure the secret through an environment variable and not put it in your code.
 
