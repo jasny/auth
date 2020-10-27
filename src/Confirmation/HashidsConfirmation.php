@@ -27,9 +27,9 @@ class HashidsConfirmation implements ConfirmationInterface
     protected \Closure $createHashids;
     protected Storage $storage;
 
-    /** @var \Closure&callable(string $uid):(string|false) */
+    /** @phpstan-var \Closure&callable(string $uid):(string|false) */
     protected \Closure $encodeUid;
-    /** @var \Closure&callable(string $uid):(string|false) */
+    /** @phpstan-var \Closure&callable(string $uid):(string|false) */
     protected \Closure $decodeUid;
 
     protected Logger $logger;
@@ -37,8 +37,8 @@ class HashidsConfirmation implements ConfirmationInterface
     /**
      * HashidsConfirmation constructor.
      *
-     * @param string                   $secret
-     * @param callable(string):Hashids $createHashids
+     * @phpstan-param string                        $secret
+     * @phpstan-param null|callable(string):Hashids $createHashids
      */
     public function __construct(string $secret, ?callable $createHashids = null)
     {
@@ -299,7 +299,7 @@ class HashidsConfirmation implements ConfirmationInterface
             $this->secret,
         ];
 
-        return hash_hmac('sha256', join("\0", $parts));
+        return hash('sha256', join("\0", $parts));
     }
 
 

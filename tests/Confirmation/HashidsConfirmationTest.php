@@ -23,8 +23,9 @@ class HashidsConfirmationTest extends TestCase
     use ExpectWarningTrait;
     use CallbackMockTrait;
 
-    protected const TOKEN = '57ZOXP4dxYhQ7Yqne191TvgvnAjxJasoybbr84enIV8oa1GEJqiYPx47gxm5CVa6Me0Mo';
-    protected const STD_HEX = '8930d6fab596adc131412a8309d5391611047dcf9dad6e106ccbb5b8ee2ae7fb202001011200003432';
+    protected const TOKEN = 'kR2wngZKmZsKRN6xWKy7U1qEWBnWxaf60YjPDakjcXKB1v2rOZt831bDOGk6hJ6WBgGBm';
+    protected const STD_HEX = '43b87e6e92e84566b79f6f16ee4c982accec20d16bc3e46c8656bcef93dafba6202001011200003432';
+    protected const OLD_HEX = '8930d6fab596adc131412a8309d5391611047dcf9dad6e106ccbb5b8ee2ae7fb202001011200003432';
 
     /** @var User&MockObject */
     protected $user;
@@ -144,6 +145,16 @@ class HashidsConfirmationTest extends TestCase
     public function testFrom()
     {
         $confirm = $this->createService(self::STD_HEX, $this->user);
+
+        $this->logger->expects($this->once())->method('info')
+            ->with('Verified confirmation token', $this->expectedContext('42', '2020-01-01T12:00:00+00:00'));
+
+        $this->assertSame($this->user, $confirm->from(self::TOKEN));
+    }
+
+    public function testFromWithOldToken()
+    {
+        $confirm = $this->createService(self::OLD_HEX, $this->user);
 
         $this->logger->expects($this->once())->method('info')
             ->with('Verified confirmation token', $this->expectedContext('42', '2020-01-01T12:00:00+00:00'));
