@@ -333,7 +333,6 @@ class Auth implements Authz
      * Set the current user and dispatch login event.
      *
      * @throws LoginException
-     * @noinspection PhpDocMissingThrowsInspection
      */
     private function loginUser(User $user): void
     {
@@ -369,7 +368,6 @@ class Auth implements Authz
      * Set the current user and dispatch login event.
      *
      * @throws LoginException
-     * @noinspection PhpDocMissingThrowsInspection
      */
     private function partialLoginUser(User $user): void
     {

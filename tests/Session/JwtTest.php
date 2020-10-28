@@ -4,27 +4,27 @@ declare(strict_types=1);
 
 namespace Jasny\Auth\Tests\Session;
 
-use Jasny\Auth\Session\JWT;
-use Jasny\Auth\Session\JWT\CookieValue;
+use Jasny\Auth\Session\Jwt;
+use Jasny\Auth\Session\Jwt\CookieValue;
 use Lcobucci\JWT\Builder;
 use Lcobucci\JWT\Parser;
 use Lcobucci\JWT\ValidationData;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @covers \Jasny\Auth\Session\JWT
- * @covers \Jasny\Auth\Session\JWT\CookieValue
+ * @covers \Jasny\Auth\Session\Jwt
+ * @covers \Jasny\Auth\Session\Jwt\CookieValue
  */
-class JWTTest extends TestCase
+class JwtTest extends TestCase
 {
     protected Builder $builder;
-    protected JWT $jwt;
+    protected Jwt $jwt;
 
     public function setUp(): void
     {
         $this->builder = new Builder();
 
-        $this->jwt = (new JWT($this->builder,  new ValidationData()))
+        $this->jwt = (new Jwt($this->builder,  new ValidationData()))
             ->withCookie(new CookieValue());
     }
 

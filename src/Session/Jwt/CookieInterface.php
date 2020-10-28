@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Jasny\Auth\Session\JWT;
+namespace Jasny\Auth\Session\Jwt;
 
 /**
  * Interface for the JWT cookie.

@@ -2,37 +2,33 @@
 
 declare(strict_types=1);
 
-namespace Jasny\Auth\Session\JWT;
+namespace Jasny\Auth\Session\Jwt;
 
 /**
- * Use global $_COOKIE and setcookie() for the JWT cookie.
+ * Use global `$_COOKIE` and `setcookie()` for the JWT cookie.
  *
  * @codeCoverageIgnore
  */
 class Cookie implements CookieInterface
 {
     protected string $name;
-    protected int $ttl;
-    protected string $path;
-    protected string $domain;
-    protected bool $secure;
-    protected bool $httpOnly;
+
+    /**
+     * Options for `setcookie()`
+     * @var array<string,mixed>
+     */
+    protected array $options;
 
     /**
      * Cookies constructor.
+     *
+     * @param string              $name
+     * @param array<string,mixed> $options
      */
-    public function __construct(
-        string $name,
-        string $path = '',
-        string $domain = '',
-        bool $secure = false,
-        bool $httpOnly = true
-    ) {
+    public function __construct(string $name, array $options = [])
+    {
         $this->name = $name;
-        $this->path = $path;
-        $this->domain = $domain;
-        $this->secure = $secure;
-        $this->httpOnly = $httpOnly;
+        $this->options = array_change_key_case($options, CASE_LOWER);
     }
 
     /**
@@ -48,7 +44,7 @@ class Cookie implements CookieInterface
      */
     public function set(string $value, int $expire): void
     {
-        $success = setcookie($this->name, $value, $expire, $this->domain, $this->path, $this->secure, $this->httpOnly);
+        $success = setcookie($this->name, $value, ['expire' => $expire] + $this->options);
 
         if (!$success) {
             throw new \RuntimeException("Failed to set cookie '{$this->name}'");
@@ -62,7 +58,7 @@ class Cookie implements CookieInterface
      */
     public function clear(): void
     {
-        $success = setcookie($this->name, '', 1, $this->domain, $this->path, $this->secure, $this->httpOnly);
+        $success = setcookie($this->name, '', ['expire' => 1] +  $this->options);
 
         if (!$success) {
             throw new \RuntimeException("Failed to clear cookie '{$this->name}'");

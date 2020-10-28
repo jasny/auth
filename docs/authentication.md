@@ -122,7 +122,7 @@ The user's authentication checksum is stored in the session and verified on each
 automatically logged out of the session.
 
 Using the hashed password for the checksum means that user will be logged out of all sessions after a password change.
-To keep him logged in in the current session call [`recalc()`](#recalc).
+To keep him logged in, in the current session, call [`recalc()`](#recalc).
 
 Alternatively, you can generate a random checksum. This would allow you to explicitly force the invalidation of other
 sessions (for instance via the press of a button).

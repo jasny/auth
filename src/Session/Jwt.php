@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Jasny\Auth\Session;
 
-use Jasny\Auth\Session\JWT\Cookie;
-use Jasny\Auth\Session\JWT\CookieInterface;
+use Jasny\Auth\Session\Jwt\Cookie;
+use Jasny\Auth\Session\Jwt\CookieInterface;
 use Jasny\Immutable;
 use Lcobucci\JWT\Parser;
 use Lcobucci\JWT\Builder;
@@ -16,7 +16,7 @@ use Lcobucci\JWT\ValidationData;
  *
  * @see https://github.com/lcobucci/jwt
  */
-class JWT implements SessionInterface
+class Jwt implements SessionInterface
 {
     use Immutable\With;
 
