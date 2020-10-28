@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jasny\Auth\Session;
 
 use Jasny\Auth\Session\JWT\Cookie;
+use Jasny\Auth\Session\JWT\CookieInterface;
 use Jasny\Immutable;
 use Lcobucci\JWT\Parser;
 use Lcobucci\JWT\Builder;
@@ -20,10 +21,11 @@ class JWT implements SessionInterface
     use Immutable\With;
 
     protected Builder $builder;
+    protected Parser $parser;
     protected ValidationData $validation;
 
-    protected int $ttl;
-    protected Cookie $cookie;
+    protected int $ttl = 24 * 3600;
+    protected CookieInterface $cookie;
 
     /**
      * JWT constructor.
@@ -32,6 +34,9 @@ class JWT implements SessionInterface
     {
         $this->builder = $builder;
         $this->validation = $validation;
+        $this->parser = new Parser();
+
+        $this->cookie = new Cookie('jwt');
     }
 
     /**
@@ -45,9 +50,17 @@ class JWT implements SessionInterface
     /**
      * Get a copy with custom cookie handler.
      */
-    public function withCookie(Cookie $cookie): self
+    public function withCookie(CookieInterface $cookie): self
     {
         return $this->withProperty('cookie', $cookie);
+    }
+
+    /**
+     * Get a copy with a custom JWT parser.
+     */
+    public function withParser(Parser $parser): self
+    {
+        return $this->withProperty('parser', $parser);
     }
 
     /**
@@ -57,21 +70,21 @@ class JWT implements SessionInterface
     {
         $jwt = $this->cookie->get();
 
-        if ($jwt === null) {
-            return [];
-        }
+        $token = $jwt !== null && $jwt !== ''
+            ? $this->parser->parse($jwt)
+            : null;
 
-        $token = (new Parser())->parse($jwt);
-
-        if (!$token->validate($this->validation)) {
-            return [];
+        if ($token === null || !$token->validate($this->validation)) {
+            return ['user' => null, 'context' => null, 'checksum' => null, 'timestamp' => null];
         }
 
         return [
             'user' => $token->getClaim('user'),
             'context' => $token->getClaim('context'),
             'checksum' => $token->getClaim('checksum'),
-            'timestamp' => $token->getHeader('iat'),
+            'timestamp' => $token->hasHeader('iat')
+                ? (new \DateTimeImmutable())->setTimestamp($token->getHeader('iat'))
+                : null,
         ];
     }
 
@@ -80,10 +93,12 @@ class JWT implements SessionInterface
      */
     public function persist($user, $context, ?string $checksum, ?\DateTimeInterface $timestamp): void
     {
+        $builder = clone $this->builder;
+
         $time = isset($timestamp) ? $timestamp->getTimestamp() : time();
         $expire = $time + $this->ttl;
 
-        $token = $this->builder
+        $token = $builder
             ->withClaim('user', $user)
             ->withClaim('context', $context)
             ->withClaim('checksum', $checksum)

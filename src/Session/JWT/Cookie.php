@@ -6,6 +6,8 @@ namespace Jasny\Auth\Session\JWT;
 
 /**
  * Use global $_COOKIE and setcookie() for the JWT cookie.
+ *
+ * @codeCoverageIgnore
  */
 class Cookie implements CookieInterface
 {
@@ -20,7 +22,7 @@ class Cookie implements CookieInterface
      * Cookies constructor.
      */
     public function __construct(
-        string $name = 'jwt',
+        string $name,
         string $path = '',
         string $domain = '',
         bool $secure = false,
