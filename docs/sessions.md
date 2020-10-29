@@ -1,3 +1,9 @@
+---
+layout: default
+title: Sessions
+nav_order: 6
+---
+
 Sessions
 ---
 

@@ -1,7 +1,13 @@
+---
+layout: default
+title: Context
+nav_order: 4
+---
+
 Context
 ---
 
-By default authorization is global, aka application-wide. However it's possible to set an authz context like an
+By default, authorization is global, aka application-wide. However, it's possible to set an authz context like an
 organization, team, or board. Rather than checking if a user is an admin in the application, you'd verify is the user
 is an admin of the organization.
 
@@ -130,7 +136,3 @@ class AuthStorage implements Auth\StorageInterface
     }
 }
 ```  
-
----
-
-[Next chapter "Authorization" >](authorization.md)

@@ -1,3 +1,10 @@
+---
+layout: default
+title: JWT
+parent: Sessions
+nav_order: 1
+---
+
 JSON Web Tokens
 ---
 

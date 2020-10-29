@@ -1,3 +1,10 @@
+---
+layout: default
+title: Authentication
+nav_order: 3
+---
+
+
 Authentication
 ---
 
@@ -161,6 +168,3 @@ save_user_to_db($auth->user());
 
 $auth->recalc();
 ```
----
-
-[Next chapter "Context" >](context.md)

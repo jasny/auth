@@ -1,3 +1,9 @@
+---
+layout: default
+title: Middleware
+nav_order: 7
+---
+
 Middleware for Access control
 ---
 
@@ -109,7 +115,3 @@ $middleware = new AuthMiddleware(/* ... */)
 
 $router->add($middleware->asDoublePass());
 ```
-
----
-
-[Next chapter "Multi-factor authentication" >](mfa.md)

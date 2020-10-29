@@ -1,3 +1,8 @@
+---
+layout: default
+title: Authorization
+nav_order: 5
+---
 
 Authorization
 ---
@@ -155,7 +160,3 @@ $authz->is('admin'); // still returns true
 $updatedAuthz = $authz->recalc();
 $updatedAuthz->is('admin'); // returns false
 ```
-
----
-
-[Next chapter "Sessions" >](sessions.md)

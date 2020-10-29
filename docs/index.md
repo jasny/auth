@@ -1,3 +1,11 @@
+---
+layout: default
+title: Home
+nav_order: 1
+description: "Authentication, authorization and access control for PHP"
+permalink: /
+---
+
 Installation
 ---
 

@@ -1,3 +1,10 @@
+---
+layout: default
+title: Bearer authentication
+parent: Sessions
+nav_order: 2
+---
+
 Bearer authentication
 ---
 

@@ -1,3 +1,9 @@
+---
+layout: default
+title: Setup
+nav_order: 2
+---
+
 Setup
 ---
 
@@ -163,7 +169,3 @@ class User implements Auth\UserInterface
 ```
 
 _It's always possible to switch from levels to groups, but usually not visa-versa._
-
----
-
-[Next chapter "Authentication" >](authentication.md)
