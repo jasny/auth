@@ -6,9 +6,6 @@ description: "Authentication, authorization and access control for PHP"
 permalink: /
 ---
 
-#Jasny Auth
-{: .fs-9 }
-
 Authentication, authorization and access control for PHP
 {: .fs-6 .fw-300 }
 
