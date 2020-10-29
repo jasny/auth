@@ -13,15 +13,17 @@ Authentication, authorization and access control for PHP.
 
 **Features**
 
-* Multiple [authorization strategies](docs/setup/roles.md), like groups (for acl) and levels.
-* Authorization [context](docs/setup/context.md) (eg. "is the user an _admin_ of this _team_").  
-* PSR-14 [events](docs/authentication.md#events) for login and logout.
-* PSR-15 [middleware](docs/middleware.md) for access control.
-* [Session invalidation](docs/authentication.md#session-invalidation), explicit or implicit (eg. after password change).
-* [Multi-factor authentication](docs/mfa/index.md) support.
-* [JWT](docs/sessions/jwt.md) and [Bearer authentication](docs/sessions/bearer.md) support.
-* [Confirmation tokens](docs/confirmation/index.md) for sign up confirmation and forgot-password.
-* PSR-3 [logging](docs/logging.md) of interesting events.
+* Multiple [authorization strategies](https://www.jasny.net/auth/setup/roles), like groups (for acl) and levels.
+* Authorization [context](https://www.jasny.net/auth/setup/context) (eg. "is the user an _admin_ of this _team_").  
+* PSR-14 [events](https://www.jasny.net/auth/authentication#events) for login and logout.
+* PSR-15 [middleware](https://www.jasny.net/auth/middleware) for access control.
+* [Session invalidation](https://www.jasny.net/auth/authentication#session-invalidation), explicit or implicit (eg.
+    after password change).
+* [Multi-factor authentication](https://www.jasny.net/auth/mfa/) support.
+* [JWT](https://www.jasny.net/auth/sessions/jwt) and [Bearer authentication](https://www.jasny.net/auth/sessions/bearer)
+    support.
+* [Confirmation tokens](https://www.jasny.net/auth/confirmation/index) for sign up confirmation and forgot-password.
+* PSR-3 [logging](https://www.jasny.net/auth/logging) of interesting events.
 * Customizable to meet the requirements of your application.
 
 ---
@@ -66,12 +68,21 @@ $auth->initialize();
 Documentation
 ---
 
-* [Setup](docs/setup/index.md)
-* [Authentication](docs/authentication.md)
-* [Context](docs/setup/context.md)
-* [Authorization](docs/authorization.md)
-* [Sessions](docs/sessions/index.md)
-* [Middleware](docs/middleware.md) (for access control)
-* [Multi-factor authentication](docs/mfa/index.md)
-* [Confirmation](docs/confirmation/index.md) (eg. forgot password)
-* [Logging](docs/logging.md)
+* [Home](https://www.jasny.net/auth/)
+* [Setup](https://www.jasny.net/auth/setup)
+    * [Roles](https://www.jasny.net/auth/setup/roles)
+    * [Storage](https://www.jasny.net/auth/setup/storage)
+    * [User](https://www.jasny.net/auth/setup/user)
+    * [Context](https://www.jasny.net/auth/setup/context)
+* [Authentication](https://www.jasny.net/auth/authentication)
+* [Authorization](https://www.jasny.net/auth/authorization)
+* [Sessions](https://www.jasny.net/auth/sessions/)
+    * [JWT](https://www.jasny.net/auth/sessions/jwt)
+    * [Bearer](https://www.jasny.net/auth/sessions/bearer)
+* [Middleware](https://www.jasny.net/auth/middleware.md) (for access control)
+* [MFA](https://www.jasny.net/auth/mfa) (Multi-factor authentication)
+    * [TOTP](https://www.jasny.net/auth/mfa/totp) _(aka Google authenticator)_
+* [Confirmation](https://www.jasny.net/auth/confirmation)
+    * [Signup](https://www.jasny.net/auth/confirmation/signup)
+    * [Forgot password](https://www.jasny.net/auth/confirmation/forgot_password)
+* [Logging](https://www.jasny.net/auth/logging)

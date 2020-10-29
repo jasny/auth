@@ -2,7 +2,7 @@
 layout: default
 title: User
 parent: Setup
-nav_order: 2
+nav_order: 3
 ---
 
 # User
