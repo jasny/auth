@@ -6,10 +6,13 @@ description: "Authentication, authorization and access control for PHP"
 permalink: /
 ---
 
-Jasny Auth
-===
+#Jasny Auth
+{: .fs-9 }
 
-Authentication, authorization and access control for PHP.
+Authentication, authorization and access control for PHP
+{: .fs-6 .fw-300 }
+
+---
 
 Installation
 ---
@@ -28,7 +31,7 @@ use Jasny\Auth\Auth;
 use Jasny\Auth\Authz\Levels;
 
 $levels = new Levels(['user' => 1, 'moderator' => 10, 'admin' => 100]);
-$auth = new Auth($levels, new AuthStorage());
+$auth = new Auth($levels, new AuthStorage()); // See `setup` docs for this class
 
 session_start();
 $auth->initialize();
