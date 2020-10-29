@@ -75,7 +75,7 @@ Returns a copy of the `Authz` service with the current user, in the given contex
 
 Alias of `Auth::inContextOf(null)`.
 
-## Immutable state
+## Immutability
 
 The `Auth` service has a mutable state. This means that calling a method a second time with the same arguments can
 give a different result, if the state has changed (by logging in or out, or changing the context).
@@ -89,7 +89,7 @@ doSomething();                  // If this function changed the current user,
 sendInfoToAdmin($auth->user()); // the info could be send to a non-admin.
 ```
 
-Use `authz()` to prevent such issues.
+The `Authz` class is immutable and can also be used for authorization and access control.
 
 ```php
 $authz = $auth->authz();
@@ -102,7 +102,7 @@ doSomething();                   // If this function changed the current user,
 sendInfoToAdmin($authz->user()); // the info will still be send to the admin.
 ```
 
-### Authorize other user
+## Authorize different user or context
 
 `Authz` services have an immutable state. Calling `forUser()` and `inContextOf()` will return a modified copy of the
 authorization service.
@@ -146,7 +146,7 @@ $authzArnoldAtJasny->user();      // returns the $arnold user
 $authzArnoldAtJasny->context();   // returns the $jasny organization
 ```
 
-### Authz recalc
+## Authz recalc
 
 The roles of the user are calculated and stored, so subsequent calls will always give the same result, even if the
 underlying user object is modified.

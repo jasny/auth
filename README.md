@@ -14,7 +14,7 @@ Authentication, authorization and access control for PHP.
 **Features**
 
 * Multiple [authorization strategies](docs/setup/roles.md), like groups (for acl) and levels.
-* Authorization [context](docs/context.md) (eg. "is the user an _admin_ of this _team_").  
+* Authorization [context](docs/setup/context.md) (eg. "is the user an _admin_ of this _team_").  
 * PSR-14 [events](docs/authentication.md#events) for login and logout.
 * PSR-15 [middleware](docs/middleware.md) for access control.
 * [Session invalidation](docs/authentication.md#session-invalidation), explicit or implicit (eg. after password change).
@@ -68,7 +68,7 @@ Documentation
 
 * [Setup](docs/setup/index.md)
 * [Authentication](docs/authentication.md)
-* [Context](docs/context.md)
+* [Context](docs/setup/context.md)
 * [Authorization](docs/authorization.md)
 * [Sessions](docs/sessions/index.md)
 * [Middleware](docs/middleware.md) (for access control)

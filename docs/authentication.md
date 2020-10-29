@@ -54,6 +54,18 @@ Use `isLoggedIn()` to see if there is a logged in user. This function throws an 
     
 Get the login timestamp.
 
+### setContext
+
+    Auth::setContext(ContextInterface $context)
+
+Set the current authorization [context](setup/context.md) for the user.
+
+### context
+
+    Auth::context(): ContextInterface|null
+    
+Get the current context. Returns `null` if the global context is used.
+
 ## Events
 
 Calling `login`, `loginAs` and `logout` will trigger an event. To capture these event, register a
