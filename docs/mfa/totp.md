@@ -5,8 +5,8 @@ parent: MFA
 nav_order: 1
 ---
 
-TOTP MFA example
----
+TOTP MFA
+===
 
 A good method is using time based one-time passwords according to [RFC 6238](http://tools.ietf.org/html/rfc6238) (TOTP),
 compatible with Google Authenticator.
@@ -19,7 +19,7 @@ composer require paragonie/constant_time_encoding
 composer require endroid/qr-code
 ```
 
-### Set MFA verification callback
+## Set MFA verification callback
 
 ```php
 use OTPHP\TOTP;
@@ -32,7 +32,7 @@ $auth = (new Auth(...))
 
 _If the MFA verification callback is not configured, MFA verification will always fail._
 
-### User class
+## User class
 
 ```php
 use Jasny\Auth\UserInterface;
@@ -49,7 +49,7 @@ class User implements UserInterface
 }
 ```
 
-### Enable TOTP for user
+## Enable TOTP for user
 
 ```php
 use Endroid\QrCode\QrCode;

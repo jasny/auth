@@ -5,7 +5,7 @@ nav_order: 5
 ---
 
 Authorization
----
+===
 
 The `is()` method checks if the current user has the given role, or has a role that supersedes the given role. 
 
@@ -19,63 +19,63 @@ if (!$auth->is('moderator')) {
 $auth->user()->getAuthRole(); // Returns 'admin' which supersedes 'moderator'.
 ```
 
-### Methods
+## Methods
 
-#### isLoggedIn
+### isLoggedIn
 
     Auth::isLoggedIn(): bool
     
 Check if the user is logged in.
 
-#### isPartiallyLoggedIn
+### isPartiallyLoggedIn
 
     Auth::isPartiallyLoggedIn(): bool
     
 Check if the user if partially logged in, in case of two-step verification (MFA).
 
-#### isLoggedOut
+### isLoggedOut
 
     Auth::isLoggedOut(): bool
     
 Check if the user is not (partially) logged in.
 
-#### is
+### is
 
     Auth::is(string $role): bool
 
 Check if the user has a specific role (or a role that supersedes it).
 
-#### getAvailableRoles
+### getAvailableRoles
 
     Auth::getAvailableRoles(): string[]
 
 Get all defined authorization roles (levels or groups).
 
-#### authz
+### authz
 
     Auth::authz(): Authz
 
 Returns a copy of the `Authz` service with the current user and context.
 
-#### forUser
+### forUser
 
     Auth::authz(User|null $user): Authz
 
 Returns a copy of the `Authz` service with the given user, in the current context.
 
-#### inContextOf
+### inContextOf
 
     Auth::inContextOf(Context|null $context): Authz
 
 Returns a copy of the `Authz` service with the current user, in the given context.
 
-#### outOfContext
+### outOfContext
 
     Auth::outOfContext(): Authz
 
 Alias of `Auth::inContextOf(null)`.
 
-### Immutable state
+## Immutable state
 
 The `Auth` service has a mutable state. This means that calling a method a second time with the same arguments can
 give a different result, if the state has changed (by logging in or out, or changing the context).
@@ -102,7 +102,7 @@ doSomething();                   // If this function changed the current user,
 sendInfoToAdmin($authz->user()); // the info will still be send to the admin.
 ```
 
-#### Authorize other user
+### Authorize other user
 
 `Authz` services have an immutable state. Calling `forUser()` and `inContextOf()` will return a modified copy of the
 authorization service.
@@ -146,7 +146,7 @@ $authzArnoldAtJasny->user();      // returns the $arnold user
 $authzArnoldAtJasny->context();   // returns the $jasny organization
 ```
 
-#### Authz recalc
+### Authz recalc
 
 The roles of the user are calculated and stored, so subsequent calls will always give the same result, even if the
 underlying user object is modified.

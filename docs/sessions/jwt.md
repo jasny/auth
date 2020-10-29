@@ -6,7 +6,7 @@ nav_order: 1
 ---
 
 JSON Web Tokens
----
+===
 
 Jasny Auth supports JWT (JSON Web Tokens) as alternative method to store the user session. Using JWT requires the
 [Lcobucci JWT v3](https://github.com/lcobucci/jwt) library.
@@ -35,7 +35,7 @@ $auth->initialize($jwt);
 
 _For more information see [Lcobucci JWT documentation](https://github.com/lcobucci/jwt/blob/3.3/README.md)._
 
-### Expire TTL
+## Expire TTL
 
 By default, the token will expire 24 hours after it has been issued. The `withTtl()` method allows changing this value.
 The TTL (time to live) is specified in seconds.
@@ -45,7 +45,7 @@ $jwt = (new Jwt($builder, $validation))
     ->withTtl(4 * 3600); // 4 hours
 ```
 
-### Cookie
+## Cookie
 
 The JWT session handler sets and checks a cookie name `jwt` using `$_COOKIE` and `setcookie()`.
 
@@ -60,7 +60,7 @@ $jwt = (new Jwt($builder, $validation))
 
 The cookie expire time will always match the JWT expire time (exp claim) and can't be set.
 
-### PSR-7
+## PSR-7
 
 `AuthMiddleware` can be used to initialize a session from a PSR-7 server request. However, the auth middleware can only
 get the cookie from the request, it's not able to set a cookie in the response.

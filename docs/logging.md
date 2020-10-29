@@ -5,7 +5,7 @@ nav_order: 10
 ---
 
 Logging
----
+===
 
 You can supply a [PSR-3 compatible](https://www.php-fig.org/psr/psr-3/) logger to the `Auth` service.
 
@@ -41,7 +41,7 @@ context instead.
 In case the user changes it's credentials (which results in a different auth checksum), other sessions are no longer
 valid. In this case the user has any other sessions open (multiple browsers), 'invalid checksum' will be logged.
 
-### Logging confirmation
+## Logging confirmation
 
 The following event are logged when using Hashids confirmation tokens
 

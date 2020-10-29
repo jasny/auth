@@ -5,7 +5,8 @@ parent: Confirmation
 nav_order: 2
 ---
 
-## Forgot password
+Forgot password
+===
 
 Get a verification token. Use it in an url and set that url in an e-mail to the user.
 

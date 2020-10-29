@@ -5,7 +5,8 @@ parent: Confirmation
 nav_order: 1
 ---
 
-## Signup confirmation
+Signup confirmation
+===
 
 Get a verification token. Use it in an url and set that url in an e-mail to the user.
 

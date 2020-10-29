@@ -6,7 +6,7 @@ nav_order: 2
 ---
 
 Bearer authentication
----
+===
 
 The Auth service can be used for REST APIs that use bearer authentication rather than stateful sessions. The HTTP
 request should contain header

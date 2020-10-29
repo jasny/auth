@@ -6,6 +6,13 @@ description: "Authentication, authorization and access control for PHP"
 permalink: /
 ---
 
+![jasny-banner](https://user-images.githubusercontent.com/100821/62123924-4c501c80-b2c9-11e9-9677-2ebc21d9b713.png)
+
+Jasny Auth
+===
+
+Authentication, authorization and access control for PHP.
+
 Installation
 ---
 
@@ -42,16 +49,3 @@ The `Auth` service isn't usable until it's initialized. This should be done afte
 session_start();
 $auth->initialize();
 ```
-
-Documentation
----
-
-* [Setup](setup.md)
-* [Authentication](authentication.md)
-* [Context](context.md)
-* [Authorization](authorization.md)
-* [Sessions](sessions/index.md)
-* [Middleware](middleware.md) (for access control)
-* [Multi-factor authentication](mfa/index.md)
-* [Confirmation](confirmation/index.md) (eg. forgot password)
-* [Logging](logging.md)

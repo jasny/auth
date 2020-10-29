@@ -6,24 +6,24 @@ has_children: true
 ---
 
 Confirmation
----
+===
 
 The `Auth` class takes as confirmation service that can be use to create and verify confirmation tokens. This is useful
 to require a user to confirm signup by e-mail or for a password reset functionality.
 
-### No confirmation
+## No confirmation
 
 By default the `Auth` service has a stub object that can't create confirmation tokens. Using `$auth->confirm()`, without
 passing a confirmation when creating `Auth`, will throw an exception.
 
-### Hashids
+## Hashids
 
 The `HashidsConfirmation` service creates tokens that includes the user id, expire date, and a checksum using the
 [Hashids](https://hashids.org/php/) library.
 
     composer require hashids/hashids
 
-#### Setup
+### Setup
 
 ```php
 use Jasny\Auth\Auth;
@@ -37,7 +37,7 @@ $levels = new Authz\Levels(['user' => 1, 'admin' => 20]);
 $auth = new Auth($levels, new AuthStorage(), $confirmation);
 ```
 
-#### Security
+### Security
 
 **The token doesn't depend on hashids for security**, since hashids is _not a true encryption algorithm_. While the user
 id and expire date are obfuscated for a casual user, a hacker might be able to extract this information.
@@ -50,7 +50,7 @@ characters. A short secret might be guessed through brute forcing. Generating a 
 
 It's recommended to configure the secret through an environment variable and not put it in your code.
 
-#### Custom encoding of uid
+### Custom encoding of uid
 
 By default user IDs are treated as a (binary) string. Encoding them simply takes the byte values and convert it into a
 hexidecimal value using `unpack('H*', $uid)`.
@@ -72,7 +72,7 @@ $confirmation = (new HashidsConfirmation(getenv('AUTH_CONFIRMATION_SECRET')))
     ->withUidEncoded($encodeUuid, $decodeUuid);
 ```
 
-### Custom confirmation service
+## Custom confirmation service
 
 Hashids tokens contain all the relevant information and a checksum, which can make the quite long. An alternative is
 generating a random value and storing it to the DB.

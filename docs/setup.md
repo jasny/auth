@@ -5,9 +5,9 @@ nav_order: 2
 ---
 
 Setup
----
+===
 
-### Storage
+## Storage
 
 The `Storage` service is not provided, you'll need to create a service that can fetch a user from the database.
 
@@ -50,7 +50,7 @@ class AuthStorage implements Auth\StorageInterface
 }
 ```
 
-### User
+## User
 
 The fetch methods need to return a object that implements the `Jasny\Auth\UserInterface` interface.
 
@@ -100,12 +100,12 @@ class User implements Auth\UserInterface
 }
 ```
 
-### Authorization services
+## Authorization services
 
 The `Authz` services are used to check permissions for a user. These services are immutable, applying authorization to
 the given user and context.
 
-#### Levels
+### Levels
 
 The `Authz\Levels` service implements authorization based on access levels. Each user get permissions for it's level and
 all levels below. Levels must be integers.
@@ -124,7 +124,7 @@ $levels = new Authz\Levels([
 $auth = new Auth($levels, new AuthStorage());
 ```
 
-#### Groups
+### Groups
 
 The `Authz\Groups` service implements authorization using access groups. An access group may supersede other groups.
 

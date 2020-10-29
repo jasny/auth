@@ -6,13 +6,13 @@ nav_order: 3
 
 
 Authentication
----
+===
 
 `Auth` is a service with a mutable state. The login and logout methods change the current user.
 
-### Methods
+# Methods
 
-#### login
+## login
 
     Auth::login(string $username, string $password)
 
@@ -23,7 +23,7 @@ Triggers a [login event](#events), which may be used to cancel the login.
 The method will throw a `LoginException` if login failed. The code will either be `LoginException::INVALID_CREDENTIALS`
 or `LoginException::CANCELLED` (if cancelled via the login event).
 
-#### loginAs
+## loginAs
 
     Auth::loginAs(UserInterface $user)
 
@@ -32,7 +32,7 @@ Set user without verification.
 Triggers a [login event](#events), which may be used to cancel the login. The method will throw a `LoginException` if
 the login is cancelled.
 
-#### logout
+## logout
 
     Auth::logout()
 
@@ -40,7 +40,7 @@ Clear the current user and context.
 
 Triggers a [logout event](#events).
 
-#### user
+## user
 
     Auth::user(): UserInterface
     
@@ -48,13 +48,13 @@ Get the current user.
 
 Use `isLoggedIn()` to see if there is a logged in user. This function throws an `AuthException` if no user is logged in.
 
-#### time
+## time
 
     Auth::time(): \DateTimeInterface
     
 Get the login timestamp.
 
-### Events
+# Events
 
 Calling `login`, `loginAs` and `logout` will trigger an event. To capture these event, register a
 [PSR-14](https://www.php-fig.org/psr/psr-14/) event dispatcher.
@@ -85,7 +85,7 @@ $auth = (new Auth($levels, new AuthStorage()))
     ->withEventDispatcher(new EventDispatcher($listeners));
 ```
 
-#### Session fixation
+## Session fixation
 
 In a [session fixation attack](https://en.wikipedia.org/wiki/Session_fixation), an attacker gets hold of user's session id
 and keeps using it. In order to mitigate such an attack, the session id should be regenerated on login and the session
@@ -101,7 +101,7 @@ $listeners = (new ListenerProvider())
     });
 ```
 
-### Recalc
+# Recalc
 
 Recalculate the authz roles and store the current auth information in the session.
 
@@ -123,7 +123,7 @@ $auth->recalc();
 $auth->is('admin'); // returns true
 ```
 
-### Session invalidation
+# Session invalidation
 
 The user's authentication checksum is stored in the session and verified on each request. On a mismatch, the user is
 automatically logged out of the session.

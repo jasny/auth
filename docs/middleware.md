@@ -5,7 +5,7 @@ nav_order: 7
 ---
 
 Middleware for Access control
----
+===
 
 You can apply access control manually using the `is()` method. Alteratively, if you're using a PSR-7 compatible router,
 you can use middleware. `AuthMiddleware` implements [PSR-15 `MiddlewareInterface`](https://www.php-fig.org/psr/psr-15/).
@@ -13,7 +13,7 @@ you can use middleware. `AuthMiddleware` implements [PSR-15 `MiddlewareInterface
 Pass a [PSR-17 `ResponseFactory`](https://www.php-fig.org/psr/psr-17/#22-responsefactoryinterface) as last argument.
 It's used to create a `401 Unauthorized` or `403 Forbidden` response. 
 
-### Authorization
+## Authorization
 
 The constructor takes a callback as second argument, which should get the required authorization role / level from the
 request.
@@ -61,7 +61,7 @@ $router->add($middleware);
 If an array of strings is returned, the user should be authorized for at least one of the roles. So returning 
 `['admin', 'provider']` means the user needs to be an admin _OR_ provider.
 
-### Initialization
+## Initialization
 
 The middleware will initialize the auth service. To use a different [session service](#sessions) than `PhpSessions`,
 pass a callback to `withSession()`. The callback takes a PSR-7 `ServerRequestInterface` object and must return a
@@ -89,7 +89,7 @@ $middleware = new AuthMiddleware(/* ... */)
 $router->add($middleware);
 ```
 
-### For multiple requests
+## For multiple requests
 
 Normally the Auth service should be initialized only once. Trying to initialize it a second time will throw an
 exception. For testing (and in some rare other cases), you want to the service to be able to handle multiple request,
@@ -102,7 +102,7 @@ if (getenv('APPLICATION_ENV') === 'tests') {
 }
 ```
 
-### Double pass middleware
+## Double pass middleware
 
 Some HTTP dispatchers accept double pass middlware rather than adhering to PSR-15. This is supported via the
 `asDoublePass()` method. In this case, the request factory may be omitted from the constructor.

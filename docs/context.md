@@ -5,7 +5,7 @@ nav_order: 4
 ---
 
 Context
----
+===
 
 By default, authorization is global, aka application-wide. However, it's possible to set an authz context like an
 organization, team, or board. Rather than checking if a user is an admin in the application, you'd verify is the user
@@ -51,21 +51,21 @@ class User implements Auth\UserInterface
 }
 ```
 
-### Methods
+## Methods
 
-#### setContext
+### setContext
 
     Auth::setContext(ContextInterface $context)
 
 Set the current authorization context for the user.
 
-#### context
+### context
 
     Auth::context(): ContextInterface|null
     
 Get the current context. Returns `null` if the global context is used.
 
-### setContext vs inContextOf
+## setContext vs inContextOf
 
 In some applications the context will be determined on a slug in the URL (like `ltonetwork` in
 `https://github.com/ltonetwork/`). In that case `Context::getAuthId()` and `Storage::fetchContext()` should
@@ -93,7 +93,7 @@ if (!$auth->is('admin')) {
 $auth->context(); // returns $organization
 ```
 
-### Different type of contexts
+## Different type of contexts
 
 In some cases an application has multiple types of authorization contexts. Take Trello for instance, it defines
 application-wide, organization and board privileges.
@@ -115,7 +115,7 @@ class Organization implements Auth\ContextInterface
 }
 ```
 
-### Default context for user
+## Default context for user
 
 It might be possible to automatically determine the context for a user. For instance; the user might only be a member of
 one team. The storage service must implement the method `getContextForUser()`. This method should return the default

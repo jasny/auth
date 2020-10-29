@@ -6,7 +6,7 @@ has_children: true
 ---
 
 Sessions
----
+===
 
 By default, the super global `$_SESSION` is used. Authentication info is stored under `$_SESSION['auth']`. To change the
 way the information is stored, pass a session service when initializing.
@@ -18,7 +18,7 @@ session_start();
 $auth->initialize(new PhpSession('userinfo'));
 ```
 
-### Session object
+## Session object
 
 Use an object with `ArrayAccess` (like an `ArrayObject`) to store auth session information. Some libraries, like
 [Jasny Session Middleware](https://github.com/jasny/session-middleware), support abstracting sessions via an object.

@@ -1,12 +1,12 @@
 ---
 layout: default
-title: Sessions
+title: MFA
 nav_order: 8
 has_children: true
 ---
 
 MFA (Multi-factor authentication)
----
+===
 
 This library support a two step verification process. The `User` object has a method `requiresMfa()`, which is called
 during login. If this method returns `true`, the user will be partially logged in, requiring mfa verification to
@@ -20,7 +20,7 @@ compatible with Google Authenticator.
 
 Other methods of verification might be an SMS OTP, [WebAuthn](https://webauthn.guide/), or an email link.
 
-### Checking partial login
+## Checking partial login
 
 If the user has logged in with username and password and requires MFA verification, it will be partially
 logged in. This can be checked with `isPartiallyLoggedIn()`.
@@ -42,7 +42,7 @@ if ($auth->isPartiallyLoggedIn()) {
 The `isLoggedIn()` method returns `false`. The `is()` method will always return `false` for a partially
 logged in users (regardless of the roles of the user).
 
-### MFA verification
+## MFA verification
 
 The `mfa` method will perform the second verification step and login the user fully if this is successful. 
 
@@ -58,7 +58,7 @@ logged out.
 
 MFA verification may also be done for a fully logged in user.
 
-#### Timeout
+### Timeout
 
 The partial login state will not automatically time out and live as long as the session live time. It's recommended to
 check the authentication timestamp to limit the time between the first and second verification step.
@@ -73,7 +73,7 @@ if ($auth->time() < new \DateTime("-5 minutes")) {
 $auth->mfa($_POST['code']);
 ```
 
-### Event
+## Event
 
 In case of partial login, a `PartialLogin` event is dispatched, rather than a `Login` event. The events are similar. The
 `PartialLogin` event can be cancelled, which will trigger a `LoginException`.
