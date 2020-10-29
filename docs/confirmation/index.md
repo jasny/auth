@@ -2,6 +2,7 @@
 layout: default
 title: Confirmation
 nav_order: 9
+has_children: true
 ---
 
 Confirmation

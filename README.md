@@ -18,8 +18,8 @@ Authentication, authorization and access control for PHP.
 * PSR-14 [events](docs/authentication.md#events) for login and logout.
 * PSR-15 [middleware](docs/middleware.md) for access control.
 * [Session invalidation](docs/authentication.md#session-invalidation), explicit or implicit (eg. after password change).
-* [Multi-factor authentication](docs/mfa.md) support.
-* [Confirmation tokens](docs/confirmation.md) for sign up confirmation and forgot-password.
+* [Multi-factor authentication](docs/mfa/index.md) support.
+* [Confirmation tokens](docs/confirmation/index.md) for sign up confirmation and forgot-password.
 * PSR-3 [logging](docs/logging.md) of interesting events.
 * Customizable to meet the requirements of your application.
 
@@ -69,8 +69,8 @@ Documentation
 * [Authentication](docs/authentication.md)
 * [Context](docs/context.md)
 * [Authorization](docs/authorization.md)
-* [Sessions](docs/sessions.md)
+* [Sessions](docs/sessions/index.md)
 * [Middleware](docs/middleware.md) (for access control)
-* [Multi-factor authentication](docs/mfa.md)
-* [Confirmation](docs/confirmation.md) (eg. forgot password)
+* [Multi-factor authentication](docs/mfa/index.md)
+* [Confirmation](docs/confirmation/index.md) (eg. forgot password)
 * [Logging](docs/logging.md)

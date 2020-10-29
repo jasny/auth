@@ -2,6 +2,7 @@
 layout: default
 title: Sessions
 nav_order: 6
+has_children: true
 ---
 
 Sessions

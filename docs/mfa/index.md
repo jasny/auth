@@ -2,6 +2,7 @@
 layout: default
 title: Sessions
 nav_order: 8
+has_children: true
 ---
 
 MFA (Multi-factor authentication)
