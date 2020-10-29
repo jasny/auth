@@ -22,7 +22,7 @@ class CookieMiddlewareDoublePassTest extends TestCase
 
     public function setUp(): void
     {
-        $this->middleware = new CookieMiddleware();
+        $this->middleware = new CookieMiddleware('jwt', ['domain' => 'example.com']);
     }
 
     public function testNoJwt()
