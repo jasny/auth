@@ -41,7 +41,7 @@ class TokenConfirmationTest extends TestCase
                 'test',
                 $this->callback(function ($token) use (&$storedToken) {
                     $this->assertIsString($token);
-                    $this->assertEquals(16, strlen(base64_decode($token)));
+                    $this->assertEquals(32, strlen(base_convert($token, 36, 16)));
                     $storedToken = $token;
 
                     return true;
@@ -58,7 +58,7 @@ class TokenConfirmationTest extends TestCase
     {
         $user = $this->createMock(UserInterface::class);
         $expire = new DateTime('now + 1 hour');
-        $token = base64_encode(str_repeat("\0", 16));
+        $token = '0123456789abcdef';
 
         $this->storage->expects($this->once())->method('fetchToken')
             ->with('test', $token)

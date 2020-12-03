@@ -32,12 +32,12 @@ class TokenConfirmation implements ConfirmationInterface
      * Class constructor.
      * 
      * @param int           $numberOfBytes  Number of bytes of the random string.
-     * @param callable|null $encode         Method to encode random string, uses `base64_encode` by default.
+     * @param callable|null $encode         Method to encode random string.
      */
     public function __construct(int $numberOfBytes = 16, ?callable $encode = null)
     {
         $this->numberOfBytes = $numberOfBytes;
-        $this->encode = \Closure::fromCallable($encode ?? 'base64_encode');
+        $this->encode = \Closure::fromCallable($encode ?? [__CLASS__, 'encode']);
 
         $this->logger = new NullLogger();
     }
@@ -111,5 +111,13 @@ class TokenConfirmation implements ConfirmationInterface
         }
 
         return $user;
+    }
+
+    /**
+     * Encode the raw token to an alphanumeric string.
+     */
+    protected static function encode(string $rawToken): string
+    {
+        return base_convert(bin2hex($rawToken), 16, 36);
     }
 }
