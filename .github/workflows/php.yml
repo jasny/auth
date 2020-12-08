@@ -42,7 +42,7 @@ jobs:
 
     - name: Install dependencies
       if: steps.composer-cache.outputs.cache-hit != 'true'
-      run: composer install --prefer-dist --no-progress --no-suggest ${{ matrix.composer }}
+      run: composer update --prefer-dist --no-progress --no-suggest ${{ matrix.composer }}
     
     - name: Download Scrutinizer Ocular
       run: wget https://scrutinizer-ci.com/ocular.phar -O "/tmp/ocular.phar"
