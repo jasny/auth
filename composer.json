@@ -24,13 +24,14 @@
         "psr/http-server-middleware": "^1.0",
         "psr/log": "^1.1"
     },
+    "conflict": {
+        "hashids/hashids": "< 2.0",
+        "lcobucci/jwt": "< 3.3 || >= 4.0"
+    },
     "require-dev": {
-        "hashids/hashids": "~2.0.0",
+        "hashids/hashids": "^2.0",
         "jasny/php-code-quality": "~2.6.0",
         "lcobucci/jwt": "^3.3"
-    },
-    "suggest": {
-        "hashids/hashids": "For generating confirmation tokens"
     },
     "config": {
         "optimize-autoloader": true,

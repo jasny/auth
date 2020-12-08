@@ -9,6 +9,7 @@ use Jasny\Auth\Session\Jwt\CookieInterface;
 use Jasny\Immutable;
 use Lcobucci\JWT\Parser;
 use Lcobucci\JWT\Builder;
+use Lcobucci\JWT\Signer;
 use Lcobucci\JWT\ValidationData;
 
 /**
@@ -21,6 +22,9 @@ class Jwt implements SessionInterface
     use Immutable\With;
 
     protected Builder $builder;
+    protected Signer $signer;
+    protected Signer\Key $key;
+
     protected Parser $parser;
     protected ValidationData $validation;
 
@@ -30,9 +34,12 @@ class Jwt implements SessionInterface
     /**
      * JWT constructor.
      */
-    public function __construct(Builder $builder, ValidationData $validation)
+    public function __construct(Builder $builder, Signer $signer, Signer\Key $key, ValidationData $validation)
     {
         $this->builder = $builder;
+        $this->signer = $signer;
+        $this->key = $key;
+
         $this->validation = $validation;
         $this->parser = new Parser();
 
@@ -79,12 +86,10 @@ class Jwt implements SessionInterface
         }
 
         return [
-            'user' => $token->getClaim('user'),
-            'context' => $token->getClaim('context'),
-            'checksum' => $token->getClaim('checksum'),
-            'timestamp' => $token->hasHeader('iat')
-                ? (new \DateTimeImmutable())->setTimestamp($token->getHeader('iat'))
-                : null,
+            'user' => $token->claims()->get('user'),
+            'context' => $token->claims()->get('context'),
+            'checksum' => $token->claims()->get('checksum'),
+            'timestamp' => $token->headers()->get('iat'),
         ];
     }
 
@@ -95,18 +100,27 @@ class Jwt implements SessionInterface
     {
         $builder = clone $this->builder;
 
-        $time = isset($timestamp) ? $timestamp->getTimestamp() : time();
-        $expire = $time + $this->ttl;
+        if ($timestamp instanceof \DateTime) {
+            $timestamp = \DateTimeImmutable::createFromMutable($timestamp);
+        }
+        $time = $timestamp ?? new \DateTimeImmutable();
+        $expire = $time->add(new \DateInterval("PT{$this->ttl}S"));
 
-        $token = $builder
+        $builder
             ->withClaim('user', $user)
             ->withClaim('context', $context)
             ->withClaim('checksum', $checksum)
-            ->issuedAt($time, $timestamp !== null)
-            ->expiresAt($expire)
-            ->getToken();
+            ->issuedAt($time)
+            ->expiresAt($expire);
 
-        $this->cookie->set((string)$token, $expire);
+        if ($timestamp !== null) {
+            $builder->withHeader('iat', $timestamp);
+        }
+
+        $this->cookie->set(
+            (string)$builder->getToken($this->signer, $this->key),
+            $expire->getTimestamp()
+        );
     }
 
     /**
