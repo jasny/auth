@@ -18,6 +18,8 @@ jobs:
           - php: 7.4
             composer: '--prefer-lowest'
             desc: "Lowest versions"
+          - php: 8.0
+            coverage: false
     name: PHP ${{ matrix.php }} ${{ matrix.desc }}
 
     steps:
@@ -44,12 +46,19 @@ jobs:
     - name: Install dependencies
       if: steps.composer-cache.outputs.cache-hit != 'true'
       run: composer update --prefer-dist --no-progress --no-suggest ${{ matrix.composer }}
-    
+
+    - name: Run PHPUnit
+      if: !${{ matrix.coverage }}
+      run: vendor/bin/phpunit
+
     - name: Download Scrutinizer Ocular
+      if: ${{ matrix.coverage }}
       run: wget https://scrutinizer-ci.com/ocular.phar -O "/tmp/ocular.phar"
 
     - name: Run PHPUnit
+      if: ${{ matrix.coverage }}
       run: vendor/bin/phpunit --coverage-clover /tmp/clover.xml
-    
+
     - name: Upload coverage to Scrutinizer
+      if: ${{ matrix.coverage }}
       run: php "/tmp/ocular.phar" code-coverage:upload --format=php-clover /tmp/clover.xml
