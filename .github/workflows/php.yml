@@ -11,8 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php-versions: ['7.4', '8.0']
-    name: PHP ${{ matrix.php-versions }}
+        php: ['7.4', '8.0']
+        composer: ['']
+        include:
+          - php: 7.4
+            composer: '--prefer-lowest'
+            desc: "Lowest versions"
+    name: PHP ${{ matrix.php }} ${{ matrix.desc }}
 
     steps:
     - uses: actions/checkout@v2
@@ -20,7 +25,7 @@ jobs:
     - name: Setup PHP
       uses: shivammathur/setup-php@v2
       with:
-        php-version: ${{ matrix.php-versions }}
+        php-version: ${{ matrix.php }}
         coverage: xdebug
 
     - name: Validate composer.json and composer.lock
@@ -37,7 +42,7 @@ jobs:
 
     - name: Install dependencies
       if: steps.composer-cache.outputs.cache-hit != 'true'
-      run: composer install --prefer-dist --no-progress --no-suggest
+      run: composer install --prefer-dist --no-progress --no-suggest ${{ matrix.composer }}
     
     - name: Download Scrutinizer Ocular
       run: wget https://scrutinizer-ci.com/ocular.phar -O "/tmp/ocular.phar"
