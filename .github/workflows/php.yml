@@ -48,7 +48,7 @@ jobs:
       run: composer update --prefer-dist --no-progress --no-suggest ${{ matrix.composer }}
 
     - name: Run PHPUnit
-      if: !${{ matrix.coverage }}
+      if: ${{ ! matrix.coverage }}
       run: vendor/bin/phpunit
 
     - name: Download Scrutinizer Ocular
