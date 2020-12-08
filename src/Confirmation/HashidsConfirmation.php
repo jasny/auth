@@ -173,6 +173,10 @@ class HashidsConfirmation implements ConfirmationInterface
             return null;
         }
 
+        if ($expire->format('YmdHis') !== $expireHex) {
+            return null;
+        }
+
         return ['checksum' => $checksum, 'expire' => $expire, 'uid' => $uid];
     }
 
