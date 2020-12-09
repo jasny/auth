@@ -12,14 +12,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['7.4', '8.0']
-        composer: ['']
         include:
           - php: 7.4
             composer: '--prefer-lowest'
             desc: "Lowest versions"
+          - php: 7.4
+            coverage: true
           - php: 8.0
-            coverage: false
     name: PHP ${{ matrix.php }} ${{ matrix.desc }}
 
     steps:
@@ -47,15 +46,15 @@ jobs:
       if: steps.composer-cache.outputs.cache-hit != 'true'
       run: composer update --prefer-dist --no-progress --no-suggest ${{ matrix.composer }}
 
-    - name: Run PHPUnit
+    - name: Run PHPUnit (without coverage)
       if: ${{ ! matrix.coverage }}
-      run: vendor/bin/phpunit
+      run: vendor/bin/phpunit --coverage-clover /tmp/clover.xml
 
     - name: Download Scrutinizer Ocular
       if: ${{ matrix.coverage }}
       run: wget https://scrutinizer-ci.com/ocular.phar -O "/tmp/ocular.phar"
 
-    - name: Run PHPUnit
+    - name: Run PHPUnit (with coverage)
       if: ${{ matrix.coverage }}
       run: vendor/bin/phpunit --coverage-clover /tmp/clover.xml
 
