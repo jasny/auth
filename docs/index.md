@@ -23,6 +23,7 @@ Authentication, authorization and access control for PHP
 * [Confirmation tokens](confirmation) for sign up confirmation and forgot-password.
 * PSR-3 [logging](logging) of interesting events.
 * Customizable to meet the requirements of your application.
+
 ---
 
 Installation
