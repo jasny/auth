@@ -9,6 +9,20 @@ permalink: /
 Authentication, authorization and access control for PHP
 {: .fs-6 .fw-300 }
 
+**Features**
+
+* Multiple [authorization strategies](setup/roles), like groups (for acl) and levels.
+* Authorization [context](setup/context) (eg. "is the user an _admin_ of this _team_").  
+* PSR-14 [events](authentication#events) for login and logout.
+* PSR-15 [middleware](middleware) for access control.
+* [Session invalidation](authentication#session-invalidation), explicit or implicit (eg.
+    after password change).
+* [Multi-factor authentication](mfa) support.
+* [JWT](/sessions/jwt) and [Bearer authentication](sessions/bearer)
+    support.
+* [Confirmation tokens](confirmation) for sign up confirmation and forgot-password.
+* PSR-3 [logging](logging) of interesting events.
+* Customizable to meet the requirements of your application.
 ---
 
 Installation
