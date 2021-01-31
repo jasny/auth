@@ -116,7 +116,7 @@ class JwtTest extends TestCase
 
     public function testPersist()
     {
-        $timestamp = new \DateTimeImmutable('2020-01-01T00:00:00+00:00');
+        $timestamp = new \DateTime('2020-01-01T00:00:00+00:00'); // Should convert to DateTimeImmutable
 
         $cookie = new CookieValue();
         $this->jwt = $this->jwt->withCookie($cookie);
@@ -157,7 +157,7 @@ class JwtTest extends TestCase
 
     public function testTtl()
     {
-        $timestamp = new \DateTimeImmutable('2020-01-01T00:00:00+00:00');
+        $timestamp = new \DateTime('2020-01-01T00:00:00+00:00'); // Should convert to DateTimeImmutable
 
         $cookie = new CookieValue();
         $this->jwt = $this->jwt
