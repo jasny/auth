@@ -37,8 +37,8 @@ class HashidsConfirmation implements ConfirmationInterface
     /**
      * HashidsConfirmation constructor.
      *
-     * @phpstan-param string                        $secret
-     * @phpstan-param null|callable(string):Hashids $createHashids
+     * @param string                        $secret
+     * @param null|callable(string):Hashids $createHashids
      */
     public function __construct(string $secret, ?callable $createHashids = null)
     {
@@ -246,9 +246,8 @@ class HashidsConfirmation implements ConfirmationInterface
     protected function verifyChecksum(string $checksum, User $user, CarbonImmutable $expire, array $context): void
     {
         $expected = $this->calcChecksum($user, $expire);
-        $expectedOld = $this->calcOldChecksum($user, $expire);
 
-        if ($checksum === $expected || $checksum === $expectedOld) {
+        if ($checksum === $expected) {
             return;
         }
 
@@ -289,30 +288,11 @@ class HashidsConfirmation implements ConfirmationInterface
     }
 
     /**
-     * Calculate confirmation checksum, before switching to hmac.
-     * Temporary so existing confirmation tokens will continue working. Will be removed.
-     *
-     * @deprecated
-     */
-    protected function calcOldChecksum(User $user, \DateTimeInterface $expire): string
-    {
-        $parts = [
-            CarbonImmutable::instance($expire)->utc()->format('YmdHis'),
-            $user->getAuthId(),
-            $user->getAuthChecksum(),
-            $this->secret,
-        ];
-
-        return hash('sha256', join("\0", $parts));
-    }
-
-
-    /**
      * Create a hashids service.
      */
     public function createHashids(): Hashids
     {
-        $salt = hash('sha256', $this->subject . $this->secret, true);
+        $salt = base_convert(hash_hmac('sha256', $this->subject, $this->secret), 16, 36);
 
         return ($this->createHashids)($salt);
     }

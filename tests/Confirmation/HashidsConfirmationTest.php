@@ -23,7 +23,7 @@ class HashidsConfirmationTest extends TestCase
     use ExpectWarningTrait;
     use CallbackMockTrait;
 
-    protected const TOKEN = 'kR2wngZKmZsKRN6xWKy7U1qEWBnWxaf60YjPDakjcXKB1v2rOZt831bDOGk6hJ6WBgGBm';
+    protected const TOKEN = 'o1rLAl8m28S8v34QK8V7So8nrKOrBVFjdZgOkzmguBMNzQvyjXIn6ma1Ro9Bh8L7Mk1M0';
     protected const STD_HEX = '43b87e6e92e84566b79f6f16ee4c982accec20d16bc3e46c8656bcef93dafba6202001011200003432';
     protected const OLD_HEX = '8930d6fab596adc131412a8309d5391611047dcf9dad6e106ccbb5b8ee2ae7fb202001011200003432';
 
@@ -152,16 +152,6 @@ class HashidsConfirmationTest extends TestCase
         $this->assertSame($this->user, $confirm->from(self::TOKEN));
     }
 
-    public function testFromWithOldToken()
-    {
-        $confirm = $this->createService(self::OLD_HEX, $this->user);
-
-        $this->logger->expects($this->once())->method('info')
-            ->with('Verified confirmation token', $this->expectedContext('42', '2020-01-01T12:00:00+00:00'));
-
-        $this->assertSame($this->user, $confirm->from(self::TOKEN));
-    }
-
     public function testFromWithCustomUidEncoding()
     {
         $hex = substr(self::STD_HEX, 0, -4) . '2a';
@@ -254,7 +244,7 @@ class HashidsConfirmationTest extends TestCase
 
     public function testFromExpiredToken()
     {
-        $hex = 'b087edc903ba55d052e51aa2f8a01bc8e68c9503778eedc941e9932b36dd8d09' . '20191101120000' . '3432';
+        $hex = '3e912b083116f9063a7e0f6fb67179c024d4419aba564f4d898b0c033dc3285b' . '20191101120000' . '3432';
 
         $confirm = $this->createService($hex, $this->user);
 
@@ -274,7 +264,7 @@ class HashidsConfirmationTest extends TestCase
         /** @var Hashids&MockObject $hashids */
         $hashids = $this->createMock(Hashids::class);
 
-        $salt = hash('sha256', 'testsecret', true);
+        $salt = base_convert(hash_hmac('sha256', 'test', 'secret'), 16, 36);
         $callback = $this->createCallbackMock($this->once(), [$salt], $hashids);
 
         $service = (new HashidsConfirmation('secret', $callback))
