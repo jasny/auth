@@ -9,31 +9,45 @@ JSON Web Tokens
 ===
 
 Jasny Auth supports JWT (JSON Web Tokens) as alternative method to store the user session. Using JWT requires the
-[Lcobucci JWT v3](https://github.com/lcobucci/jwt) library.
+[Lcobucci JWT](https://github.com/lcobucci/jwt) library. Both v3 and v4 are supported.
 
     composer require lcobucci/jwt
 
-Pass a `Jwt` object when initializing auth. It takes a builder and validation data.
+Pass a `Jwt` object when initializing auth. It takes a `Lcobucci\JWT\Configuration` object.
 
 ```php
 use Jasny\Auth\Session\Jwt;
-use Lcobucci\JWT\Builder;
-use Lcobucci\JWT\ValidationData;
+use Lcobucci\Clock\SystemClock;
+use Lcobucci\JWT\Configuration;
+use Lcobucci\JWT\Signer\Hmac\Sha256;
+use Lcobucci\JWT\Signer\Key\InMemory;
+use Lcobucci\JWT\Validation\Constraint;
 
-$builder = (new Builder())
-    ->issuedBy('http://example.com')      // Configures the issuer (iss claim)
-    ->permittedFor('http://example.org'); // Configures the audience (aud claim)
+$configuration = Configuration::forSymmetricSigner(
+    new Sha256(),
+    // replace the value below with a key of your own!
+    InMemory::base64Encoded('mBC5v1sOKVvbdEitdSBenu59nfNfhwkedkJVNabosTw=')
+);
 
-$validation = new ValidationData();
-$validation->setIssuer('http://example.com');
-$validation->setAudience('http://example.com');
+$configuration->builder()
+    ->issuedBy('http://example.com')                    // Configures the issuer (iss claim)
+    ->permittedFor('http://example.org');               // Configure the audience (aud claim)
 
-$jwt = new Jwt($builder, $validation);
+$configuration->setValidationConstraints(
+    new Constraint\LooseValidAt(                        // Token should not be expired
+        new SystemClock(new DateTimeZone('UTC')),
+        new DateInterval('PT30S')
+    ),
+    new Constraint\IssuedBy('http://example.com'),      // Check the issuer
+    new Constraint\PermittedFor('http://example.com'),  // Check the audience
+);
+
+$jwt = new Jwt($configuration);
 
 $auth->initialize($jwt);
 ```
 
-_For more information see [Lcobucci JWT documentation](https://github.com/lcobucci/jwt/blob/3.3/README.md)._
+_For more information see [Lcobucci JWT documentation](https://lcobucci-jwt.readthedocs.io/en/latest/)._
 
 ## Expire TTL
 
@@ -41,7 +55,7 @@ By default, the token will expire 24 hours after it has been issued. The `withTt
 The TTL (time to live) is specified in seconds.
 
 ```php
-$jwt = (new Jwt($builder, $validation))
+$jwt = (new Jwt($configuration))
     ->withTtl(4 * 3600); // 4 hours
 ```
 
@@ -54,7 +68,7 @@ You can change the cookie parameters by passing a new `JWT\Cookie` object to `wi
 ```php
 use Jasny\Auth\Session\Jwt;
 
-$jwt = (new Jwt($builder, $validation))
+$jwt = (new Jwt($configuration))
     ->withCookie(new Jwt\Cookie('my-web-token', ['domain' => 'example.com']));
 ```
 
@@ -74,18 +88,16 @@ The cookie middleware will add a `Set-Cookie` header to the response if the cook
 use Jasny\Auth\AuthMiddleware;
 use Jasny\Auth\Session\Jwt;
 use Jasny\Auth\Session\Jwt\CookieMiddleware;
-use Lcobucci\JWT\Builder;
-use Lcobucci\JWT\ValidationData;
+use Lcobucci\JWT\Configuration;
 use Psr\Http\Message\ServerRequestInterface;
 
 $router->add(new CookieMiddleware()); // Must be added before AuthMiddleware
 
 $router->add((new AuthMiddleware(/* ... */))->withSession(
     function (ServerRequestInterface $request) {
-        $builder = new Builder();
-        $validation = new ValidationData();
+        $configuration = Configuration::forSymmetricSigner(/* ... */);
 
-        return (new Jwt($builder, $validation))
+        return (new Jwt($configuration))
             ->withCookie($request->getAttribute('jwt_cookie'));
     });
 );
