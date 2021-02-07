@@ -7,7 +7,23 @@ nav_order: 3
 
 # User
 
-The storage service must return an object that implements the `Jasny\Auth\UserInterface` interface.
+The storage service must return an object that implements the `UserInterface` interface.
+
+## Basic User
+
+The `BasicUser` class only defines a few properties and methods. It should only be used for the `Auth` class in case the
+rest of the application doesn't need a user object.
+
+When the storage class has loaded data from the DB, it should call the static `BasicUser::fromData()` method to create a
+user object.
+
+## Custom class
+
+If your application uses objects for the model, for instance through ORM, you should create a custom `User` class. This
+class must implement `UserInterface`.
+
+To support advanced features like MFA or triggered session invalidation, you also need to create a custom `User` class
+and can't use `BasicUser`.
 
 ```php
 use Jasny\Auth;
@@ -18,7 +34,7 @@ class User implements Auth\UserInterface
     public string $username;
     public int $accessLevel = 0;
 
-    protected string $hashedPassword;
+    protected string $hashedPassword = '';
 
     public function getAuthId(): string
     {
@@ -54,3 +70,6 @@ class User implements Auth\UserInterface
     }
 }
 ```
+
+If you're not using an ORM library like Doctrine, you should add a static `fromData()` method, which can turn data
+loaded from the DB to a `User` object.
