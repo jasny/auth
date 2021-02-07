@@ -1,7 +1,8 @@
 ---
 layout: default
 title: Forgot password
-parent: Confirmation
+parent: Examples
+grand_parent: Confirmation
 nav_order: 2
 ---
 

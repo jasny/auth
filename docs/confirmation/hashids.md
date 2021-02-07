@@ -1,6 +1,7 @@
 ---
 layout: default
 title: Hashids
+parent: Confirmation
 nav_order: 2
 ---
 

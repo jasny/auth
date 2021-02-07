@@ -1,6 +1,7 @@
 ---
 layout: default
 title: Random token
+parent: Confirmation
 nav_order: 1
 ---
 
