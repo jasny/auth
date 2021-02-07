@@ -13,7 +13,7 @@ to require a user to confirm signup by e-mail or for a password reset functional
 
 ## No confirmation
 
-By default the `Auth` service has a stub object that can't create confirmation tokens. Using `$auth->confirm()`, without
+By default, the `Auth` service has a stub object that can't create confirmation tokens. Using `$auth->confirm()`, without
 passing a confirmation when creating `Auth`, will throw an exception.
 
 ## Random token

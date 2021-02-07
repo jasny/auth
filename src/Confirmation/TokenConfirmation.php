@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jasny\Auth\Confirmation;
 
+use Jasny\Auth\Storage\TokenStorageInterface;
 use Jasny\Auth\StorageInterface as Storage;
 use Jasny\Auth\UserInterface as User;
 use Jasny\Immutable;
@@ -96,7 +97,14 @@ class TokenConfirmation implements ConfirmationInterface
             throw new \BadMethodCallException("Storage is not set");
         }
 
-        ['uid' => $uid, 'expire' => $expire] = $this->storage->fetchToken($this->subject, $token);
+        $info = $this->storage->fetchToken($this->subject, $token);
+
+        if ($info === null) {
+            $this->logger->debug('Unknown confirmation token', ['token' => $token]);
+            throw new InvalidTokenException("Token has been revoked");
+        }
+
+        ['uid' => $uid, 'expire' => $expire] = $info;
 
         if ($expire <= new \DateTime()) {
             $this->logger->debug('Expired confirmation token', ['token' => $token, 'uid' => $uid]);

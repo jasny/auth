@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Jasny\Auth\Confirmation;
+namespace Jasny\Auth\Storage;
 
 use Jasny\Auth\StorageInterface;
 use Jasny\Auth\UserInterface;
@@ -20,7 +20,7 @@ interface TokenStorageInterface extends StorageInterface
     /**
      * Fetch a user by a confirmation token.
      *
-     * @phpstan-return array{uid:string,expire:\DateTimeInterface}
+     * @phpstan-return array{uid:string,expire:\DateTimeInterface}|null
      */
-    public function fetchToken(string $subject, string $token): array;
+    public function fetchToken(string $subject, string $token): ?array;
 }
