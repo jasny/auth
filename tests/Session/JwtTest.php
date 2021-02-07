@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Jasny\Auth\Tests\Session;
 
-use Lcobucci\JWT\Signer;
+use DateInterval;
+use DateTimeImmutable;
+use Lcobucci\Clock\FrozenClock;
+use Lcobucci\JWT\Configuration;
+use Lcobucci\JWT\Validation\Constraint;
 use Jasny\Auth\Session\Jwt;
 use Jasny\Auth\Session\Jwt\CookieValue;
-use Lcobucci\JWT\Builder;
-use Lcobucci\JWT\Parser;
-use Lcobucci\JWT\ValidationData;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -18,33 +19,42 @@ use PHPUnit\Framework\TestCase;
  */
 class JwtTest extends TestCase
 {
-    protected Builder $builder;
-    protected Signer $signer;
-    protected Signer\Key $key;
-
+    protected Configuration $jwtConfig;
     protected Jwt $jwt;
 
     public function setUp(): void
     {
-        $this->builder = new Builder();
-        $this->signer = new Signer\None();
-        $this->key = new Signer\Key('');
+        $this->jwtConfig = Configuration::forUnsecuredSigner();
 
-        $this->jwt = (new Jwt($this->builder, $this->signer, $this->key, new ValidationData()))
+        $constraint = class_exists(Constraint\LooseValidAt::class)
+            // V4
+            ? new Constraint\LooseValidAt(
+                new FrozenClock(new DateTimeImmutable('2020-01-02T00:00:00+00:00')),
+                new DateInterval('PT30S')
+            )
+            // V3
+            : new Constraint\ValidAt(
+                new FrozenClock(new DateTimeImmutable('2020-01-02T00:00:00+00:00')),
+                new DateInterval('PT30S')
+            );
+        $this->jwtConfig->setValidationConstraints($constraint);
+
+        $this->jwt = (new Jwt($this->jwtConfig))
             ->withCookie(new CookieValue());
     }
 
     public function testGetInfo()
     {
-        $token = $this->builder
+        $token = $this->jwtConfig->builder()
             ->withClaim('user', 'abc')
             ->withClaim('context', 99)
             ->withClaim('checksum', 'xyz')
             ->withHeader('iat', new \DateTimeImmutable('2020-01-01T00:00:00+00:00'))
             ->issuedAt(new \DateTimeImmutable('2020-01-01T00:00:00+00:00'))
-            ->getToken($this->signer, $this->key);
+            ->expiresAt(new \DateTimeImmutable('2020-01-03T00:00:00+00:00'))
+            ->getToken($this->jwtConfig->signer(), $this->jwtConfig->signingKey());
 
-        $cookie = new CookieValue((string)$token);
+        $cookie = new CookieValue($token->toString());
         $this->jwt = $this->jwt->withCookie($cookie);
 
         $info = $this->jwt->getInfo();
@@ -60,14 +70,14 @@ class JwtTest extends TestCase
 
     public function testGetInfoWithoutTimestamp()
     {
-        $token = $this->builder
+        $token = $this->jwtConfig->builder()
             ->withClaim('user', 'abc')
             ->withClaim('context', 99)
             ->withClaim('checksum', 'xyz')
             ->issuedAt(new \DateTimeImmutable('2020-01-01T00:00:00+00:00'))
-            ->getToken($this->signer, $this->key);
+            ->getToken($this->jwtConfig->signer(), $this->jwtConfig->signingKey());
 
-        $cookie = new CookieValue((string)$token);
+        $cookie = new CookieValue($token->toString());
 
         $this->jwt = $this->jwt->withCookie($cookie);
 
@@ -84,16 +94,16 @@ class JwtTest extends TestCase
 
     public function testGetInfoWithExpiredToken()
     {
-        $token = $this->builder
+        $token = $this->jwtConfig->builder()
             ->withClaim('user', 'abc')
             ->withClaim('context', 99)
             ->withClaim('checksum', 'xyz')
             ->withHeader('iat', new \DateTimeImmutable('2020-01-01T00:00:00+00:00'))
             ->issuedAt(new \DateTimeImmutable('2020-01-01T00:00:00+00:00'))
-            ->expiresAt(new \DateTimeImmutable('2020-01-02T00:00:00+00:00'))
-            ->getToken($this->signer, $this->key);
+            ->expiresAt(new \DateTimeImmutable('2020-01-01T12:00:00+00:00'))
+            ->getToken($this->jwtConfig->signer(), $this->jwtConfig->signingKey());
 
-        $cookie = new CookieValue((string)$token);
+        $cookie = new CookieValue($token->toString());
         $this->jwt = $this->jwt->withCookie($cookie);
 
         $info = $this->jwt->getInfo();
@@ -123,30 +133,30 @@ class JwtTest extends TestCase
 
         $this->jwt->persist('abc', 99, 'xyz', $timestamp);
 
-        $token = $this->builder
+        $token = $this->jwtConfig->builder()
             ->withClaim('user', 'abc')
             ->withClaim('context', 99)
             ->withClaim('checksum', 'xyz')
             ->withHeader('iat', new \DateTimeImmutable('2020-01-01T00:00:00+00:00'))
             ->issuedAt(new \DateTimeImmutable('2020-01-01T00:00:00+00:00'))
             ->expiresAt(new \DateTimeImmutable('2020-01-02T00:00:00+00:00'))
-            ->getToken($this->signer, $this->key);
+            ->getToken($this->jwtConfig->signer(), $this->jwtConfig->signingKey());
 
-        $this->assertEquals((string)$token, $cookie->get());
+        $this->assertEquals($token->toString(), $cookie->get());
         $this->assertEquals(strtotime('2020-01-02T00:00:00+00:00'), $cookie->getExpire());
     }
 
     public function testClear()
     {
-        $token = $this->builder
+        $token = $this->jwtConfig->builder()
             ->withClaim('user', 'abc')
             ->withClaim('context', 99)
             ->withClaim('checksum', 'xyz')
             ->withHeader('iat', new \DateTimeImmutable('2020-01-01T00:00:00+00:00'))
             ->issuedAt(new \DateTimeImmutable('2020-01-01T00:00:00+00:00'))
-            ->getToken($this->signer, $this->key);
+            ->getToken($this->jwtConfig->signer(), $this->jwtConfig->signingKey());
 
-        $cookie = new CookieValue((string)$token);
+        $cookie = new CookieValue($token->toString());
         $this->jwt = $this->jwt->withCookie($cookie);
 
         $this->jwt->clear();
@@ -166,48 +176,16 @@ class JwtTest extends TestCase
 
         $this->jwt->persist('abc', 99, 'xyz', $timestamp);
 
-        $token = $this->builder
+        $token = $this->jwtConfig->builder()
             ->withClaim('user', 'abc')
             ->withClaim('context', 99)
             ->withClaim('checksum', 'xyz')
             ->withHeader('iat', new \DateTimeImmutable('2020-01-01T00:00:00+00:00'))
             ->issuedAt(new \DateTimeImmutable('2020-01-01T00:00:00+00:00'))
             ->expiresAt(new \DateTimeImmutable('2020-01-01T01:00:00+00:00'))
-            ->getToken($this->signer, $this->key);
+            ->getToken($this->jwtConfig->signer(), $this->jwtConfig->signingKey());
 
-        $this->assertEquals((string)$token, $cookie->get());
+        $this->assertEquals($token->toString(), $cookie->get());
         $this->assertEquals(strtotime('2020-01-01T01:00:00+00:00'), $cookie->getExpire());
-    }
-
-    public function testWithCustomParser()
-    {
-        $token = $this->builder
-            ->withClaim('user', 'abc')
-            ->withClaim('context', 99)
-            ->withClaim('checksum', 'xyz')
-            ->withHeader('iat', new \DateTimeImmutable('2020-01-01T00:00:00+00:00'))
-            ->issuedAt(new \DateTimeImmutable('2020-01-01T00:00:00+00:00'))
-            ->getToken($this->signer, $this->key);
-
-        $cookie = new CookieValue('..TOKEN..');
-
-        $parser = $this->createMock(Parser::class);
-        $parser->expects($this->once())->method('parse')
-            ->with('..TOKEN..')
-            ->willReturn($token);
-
-        $this->jwt = $this->jwt
-            ->withParser($parser)
-            ->withCookie($cookie);
-
-        $info = $this->jwt->getInfo();
-
-        $expected = [
-            'user' => 'abc',
-            'context' => 99,
-            'checksum' => 'xyz',
-            'timestamp' => new \DateTimeImmutable('2020-01-01T00:00:00+00:00'),
-        ];
-        $this->assertEquals($expected, $info);
     }
 }

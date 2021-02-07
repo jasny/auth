@@ -49,7 +49,6 @@ class TokenConfirmationTest extends TestCase
                 'test',
                 $this->callback(function ($token) use (&$storedToken) {
                     $this->assertIsString($token);
-                    $this->assertEquals(32, strlen(base_convert($token, 36, 16)));
                     $storedToken = $token;
 
                     return true;

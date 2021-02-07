@@ -46,11 +46,7 @@ class PhpSession implements SessionInterface
     }
 
     /**
-     * Persist auth information to session.
-     *
-     * @param mixed       $userId
-     * @param mixed       $contextId
-     * @param string|null $checksum
+     * @inheritDoc
      */
     public function persist($userId, $contextId, ?string $checksum, ?\DateTimeInterface $timestamp): void
     {
@@ -65,7 +61,7 @@ class PhpSession implements SessionInterface
     }
 
     /**
-     * Remove auth information from session.
+     * @inheritDoc
      */
     public function clear(): void
     {

@@ -7,10 +7,7 @@ namespace Jasny\Auth\Session;
 use Jasny\Auth\Session\Jwt\Cookie;
 use Jasny\Auth\Session\Jwt\CookieInterface;
 use Jasny\Immutable;
-use Lcobucci\JWT\Parser;
-use Lcobucci\JWT\Builder;
-use Lcobucci\JWT\Signer;
-use Lcobucci\JWT\ValidationData;
+use Lcobucci\JWT\Configuration;
 
 /**
  * Use JSON Web Token and JSON Web Signature (RFC 7519) to store auth session info.
@@ -21,12 +18,7 @@ class Jwt implements SessionInterface
 {
     use Immutable\With;
 
-    protected Builder $builder;
-    protected Signer $signer;
-    protected Signer\Key $key;
-
-    protected Parser $parser;
-    protected ValidationData $validation;
+    protected Configuration $jwtConfig;
 
     protected int $ttl = 24 * 3600;
     protected CookieInterface $cookie;
@@ -34,15 +26,9 @@ class Jwt implements SessionInterface
     /**
      * JWT constructor.
      */
-    public function __construct(Builder $builder, Signer $signer, Signer\Key $key, ValidationData $validation)
+    public function __construct(Configuration $jwtConfig)
     {
-        $this->builder = $builder;
-        $this->signer = $signer;
-        $this->key = $key;
-
-        $this->validation = $validation;
-        $this->parser = new Parser();
-
+        $this->jwtConfig = $jwtConfig;
         $this->cookie = new Cookie('jwt');
     }
 
@@ -63,14 +49,6 @@ class Jwt implements SessionInterface
     }
 
     /**
-     * Get a copy with a custom JWT parser.
-     */
-    public function withParser(Parser $parser): self
-    {
-        return $this->withProperty('parser', $parser);
-    }
-
-    /**
      * @inheritDoc
      */
     public function getInfo(): array
@@ -78,27 +56,37 @@ class Jwt implements SessionInterface
         $jwt = $this->cookie->get();
 
         $token = $jwt !== null && $jwt !== ''
-            ? $this->parser->parse($jwt)
+            ? $this->jwtConfig->parser()->parse($jwt)
             : null;
 
-        if ($token === null || !$token->validate($this->validation)) {
+        $constraints = $this->jwtConfig->validationConstraints();
+
+        if (
+            $token === null ||
+            ($constraints !== [] && !$this->jwtConfig->validator()->validate($token, ...$constraints))
+        ) {
             return ['user' => null, 'context' => null, 'checksum' => null, 'timestamp' => null];
+        }
+
+        $timestamp = $token->headers()->get('iat');
+        if (is_array($timestamp)) {
+            $timestamp = new \DateTimeImmutable($timestamp['date'], new \DateTimeZone($timestamp['timezone']));
         }
 
         return [
             'user' => $token->claims()->get('user'),
             'context' => $token->claims()->get('context'),
             'checksum' => $token->claims()->get('checksum'),
-            'timestamp' => $token->headers()->get('iat'),
+            'timestamp' => $timestamp,
         ];
     }
 
     /**
      * @inheritDoc
      */
-    public function persist($user, $context, ?string $checksum, ?\DateTimeInterface $timestamp): void
+    public function persist($userId, $contextId, ?string $checksum, ?\DateTimeInterface $timestamp): void
     {
-        $builder = clone $this->builder;
+        $builder = clone $this->jwtConfig->builder();
 
         if ($timestamp instanceof \DateTime) {
             $timestamp = \DateTimeImmutable::createFromMutable($timestamp);
@@ -107,8 +95,8 @@ class Jwt implements SessionInterface
         $expire = $time->add(new \DateInterval("PT{$this->ttl}S"));
 
         $builder
-            ->withClaim('user', $user)
-            ->withClaim('context', $context)
+            ->withClaim('user', $userId)
+            ->withClaim('context', $contextId)
             ->withClaim('checksum', $checksum)
             ->issuedAt($time)
             ->expiresAt($expire);
@@ -118,7 +106,7 @@ class Jwt implements SessionInterface
         }
 
         $this->cookie->set(
-            (string)$builder->getToken($this->signer, $this->key),
+            $builder->getToken($this->jwtConfig->signer(), $this->jwtConfig->signingKey())->toString(),
             $expire->getTimestamp()
         );
     }
