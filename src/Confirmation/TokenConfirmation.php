@@ -49,7 +49,7 @@ class TokenConfirmation implements ConfirmationInterface
     public function withStorage(Storage $storage): self
     {
         if (!$storage instanceof TokenStorageInterface) {
-            throw new \UnexpectedValueException("Storage object needs to implement " . TokenStorageInterface::class);
+            throw new \InvalidArgumentException("Storage object needs to implement " . TokenStorageInterface::class);
         }
 
         return $this->withProperty('storage', $storage);
@@ -83,7 +83,7 @@ class TokenConfirmation implements ConfirmationInterface
         $rawToken = random_bytes($this->numberOfBytes);
         $token = ($this->encode)($rawToken);
 
-        $this->storage->saveToken($user, $this->subject, $token, $expire);
+        $this->storage->saveToken($this->subject, $token, $user, $expire);
 
         return $token;
     }

@@ -46,7 +46,6 @@ class TokenConfirmationTest extends TestCase
 
         $this->storage->expects($this->once())->method('saveToken')
             ->with(
-                $this->identicalTo($user),
                 'test',
                 $this->callback(function ($token) use (&$storedToken) {
                     $this->assertIsString($token);
@@ -55,6 +54,7 @@ class TokenConfirmationTest extends TestCase
 
                     return true;
                 }),
+                $this->identicalTo($user),
                 $this->identicalTo($expire)
             );
 

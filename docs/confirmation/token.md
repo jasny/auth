@@ -7,84 +7,62 @@ nav_order: 1
 Random token
 ===
 
-## TODO
+The `TokenConfirmation` service creates a random confirmation token. This token must be stored to a database together
+with the subject, user id and expiry date.
+
+## Setup
 
 ```php
-use Jasny\Auth\Confirmation\ConfirmationInterface;
-use Jasny\Auth\Confirmation\InvalidTokenException;
+use Jasny\Auth\Auth;
+use Jasny\Auth\Authz;
+use Jasny\Auth\Confirmation\TokenConfirmation;
+
+$confirmation = new TokenConfirmation();
+
+$levels = new Authz\Levels(['user' => 1, 'admin' => 20]);
+$auth = new Auth($levels, new AuthStorage(), $confirmation);
+```
+
+## Storage
+
+To store the token, the storage class must implement `TokenStorageInterface`, adding two methods.
+
+```php
 use Jasny\Auth\StorageInterface;
+use Jasny\Auth\Storage\TokenStorageInterface;
 use Jasny\Auth\UserInterface;
 
-class MyCustomConfirmation implements ConfirmationInterface
+class AuthStorage implements StorageInterface, TokenStorageInterface
 {
-    protected Storage $storage;
-    protected string $subject;
+    public \PDO $db;
 
-    protected function storeToken(string $token, string $uid, string $authChecksum, \DateTimeInterface $expire): void
-    {
-        // Store token with user id, auth checksum, subject and expire date to DB
-    }
-
-    protected function fetchTokenInfo(string $token): ?array
-    {
-        // Query DB and return uid, expire date and subject for given token
-    }
-
-
-    public function withStorage(StorageInterface $storage)
-    {
-        $clone = clone $this;
-        $clone->storage = $storage;
-
-        return $clone;
-    }
-
-    public function withSubject(string $subject)
-    {
-        $clone = clone $this;
-        $clone->subject = $subject;
-
-        return $clone;
-    }
-
-    public function withLogger(\Psr\Log\LoggerInterface $logger)
-    {
-        // ...
-    }
-
-    public function getToken(UserInterface $user, \DateTimeInterface $expire): string
-    {
-        $token = base_convert(bin2hex(random_bytes(32)), 16, 36);
-        $this->storeToken($token, $user->getAuthId(), $user->getAuthChecksum(), $expire);
+    // ...
     
-        return $token;
+    /**
+     * Save a confirmation token to the database.
+     */
+    public function saveToken(string $subject, string $token, UserInterface $user, \DateTimeInterface $expire): void
+    {
+        $this->db->prepare("INSERT INTO tokens (uid, subject, token, expire) VALUES (?, ?, ?, ?)")
+            ->execute([$user->getAuthId(), $subject, $token, $expire->format('c')]);
     }
 
-    public function from(string $token): UserInterface
+    /**
+     * Fetch a user by a confirmation token.
+     *
+     * @phpstan-return array{uid:string,expire:\DateTimeInterface}|null
+     */
+    public function fetchToken(string $subject, string $token): ?array
     {
-        $info = $this->fetchTokenInfo($token);
+        $stmt = $this->db->prepare("SELECT uid, expire FROM tokens WHERE subject = ? AND token = ?");
+        $stmt->execute([$subject, $token]);
+        $info = $stmt->fetch(\PDO::FETCH_ASSOC);
         
-        if ($info === null) {
-            throw new InvalidTokenException("Invalid token");
+        if ($info !== null) {
+            $info['expire'] = new \DateTimeImmutable($info['expire']);
         }
-
-        ['uid' => $uid, 'authChecksum' => $authChecksum, 'expire' => $expire, 'subject' => $subject] = $info;
-
-        if ($expire < new \DateTime()) {
-            throw new InvalidTokenException("Token expired");
-        }
-
-        if ($subject !== $this->subject) {
-            throw new InvalidTokenException("Invalid token");
-        }
-
-        $user = $this->storage->fetchUserById($uid);
-
-        if ($user === null || $user->getAuthChecksum() !== $authChecksum) {
-            throw new InvalidTokenException("Invalid token");
-        }
-
-        return $user;
+        
+        return $info;
     }
 }
 ```

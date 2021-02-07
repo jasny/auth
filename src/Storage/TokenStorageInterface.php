@@ -15,7 +15,7 @@ interface TokenStorageInterface extends StorageInterface
     /**
      * Save a confirmation token to the database.
      */
-    public function saveToken(UserInterface $user, string $subject, string $token, \DateTimeInterface $expire): void;
+    public function saveToken(string $subject, string $token, UserInterface $user, \DateTimeInterface $expire): void;
 
     /**
      * Fetch a user by a confirmation token.
