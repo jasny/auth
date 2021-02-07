@@ -10,6 +10,21 @@ Authentication
 
 `Auth` is a service with a mutable state. The login and logout methods change the current user.
 
+```php
+use Jasny\Auth\LoginException;
+
+try {
+    $auth->login($_POST['username'], $_POST['password']);
+} catch (LoginException $exception) {
+    http_response_code(400);
+    echo $exception->getMessage();
+}
+
+http_response_code(303);
+header("Location: /dashboard");
+echo "You're being redirected to <a href='/dashboard'>the dashboard</a>."
+```
+
 ## Methods
 
 ### login

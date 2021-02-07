@@ -135,7 +135,7 @@ class Auth implements Authz
      *
      * @return array{user:User|null,context:Context|null,timestamp:\DateTimeInterface|null}
      */
-    protected function getInfoFromSession()
+    protected function getInfoFromSession(): array
     {
         $partial = false;
 

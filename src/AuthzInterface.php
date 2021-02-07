@@ -22,31 +22,21 @@ interface AuthzInterface
 
     /**
      * Get an authz service for the given user.
-     *
-     * @param User|null    $user
-     * @return AuthzInterface
      */
     public function forUser(?User $user): self;
 
     /**
      * Get an authz service for the given context.
-     *
-     * @param Context|null $context
-     * @return AuthzInterface
      */
     public function inContextOf(?Context $context): self;
 
     /**
      * Alias of `inContextOf(null)`.
-     *
-     * @return AuthzInterface
      */
     public function outOfContext(): self;
 
     /**
      * Get a copy, recalculating the authz role of the user.
-     *
-     * @return AuthzInterface
      */
     public function recalc(): self;
 
