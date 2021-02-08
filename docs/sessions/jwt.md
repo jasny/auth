@@ -23,11 +23,8 @@ use Lcobucci\JWT\Signer\Hmac\Sha256;
 use Lcobucci\JWT\Signer\Key\InMemory;
 use Lcobucci\JWT\Validation\Constraint;
 
-$configuration = Configuration::forSymmetricSigner(
-    new Sha256(),
-    // replace the value below with a key of your own!
-    InMemory::base64Encoded('mBC5v1sOKVvbdEitdSBenu59nfNfhwkedkJVNabosTw=')
-);
+$secret = getenv('AUTH_JWT_SECRET'); // Secret is a base64 encoded random 32 byte string
+$configuration = Configuration::forSymmetricSigner(new Sha256(), InMemory::base64Encoded($secret));
 
 $configuration->builder()
     ->issuedBy('http://example.com')                    // Configures the issuer (iss claim)
