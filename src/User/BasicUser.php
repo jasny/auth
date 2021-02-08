@@ -63,8 +63,8 @@ final class BasicUser implements UserInterface
     /**
      * Factory method; create object from data loaded from DB.
      *
-     * @param array $data
-     * @return static
+     * @phpstan-param array<string,mixed> $data
+     * @phpstan-return self
      */
     public static function fromData(array $data): self
     {

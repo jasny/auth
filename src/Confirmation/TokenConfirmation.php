@@ -21,7 +21,6 @@ class TokenConfirmation implements ConfirmationInterface
 
     protected int $numberOfBytes;
 
-    /** @phpstan-param \Closure&callable(string):string */
     protected \Closure $encode;
 
     protected TokenStorageInterface $storage;
@@ -31,7 +30,7 @@ class TokenConfirmation implements ConfirmationInterface
 
     /**
      * Class constructor.
-     * 
+     *
      * @param int           $numberOfBytes  Number of bytes of the random string.
      * @param callable|null $encode         Method to encode random string.
      */
@@ -44,7 +43,10 @@ class TokenConfirmation implements ConfirmationInterface
     }
 
     /**
-     * @inheritDoc
+     * Get copy with storage service.
+     *
+     * @param Storage $storage
+     * @return static
      */
     public function withStorage(Storage $storage): self
     {

@@ -48,7 +48,10 @@ class HashidsConfirmation implements ConfirmationInterface
             ? \Closure::fromCallable($createHashids)
             : fn(string $salt) => new Hashids($salt);
 
-        $this->encodeUid = fn(string $uid) => unpack('H*', $uid)[1];
+        $this->encodeUid = function (string $uid) {
+            $unpacked = unpack('H*', $uid);
+            return $unpacked !== false ? $unpacked[1] : '';
+        };
         $this->decodeUid = fn(string $hex) => pack('H*', $hex);
 
         $this->logger = new NullLogger();

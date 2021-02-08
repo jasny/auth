@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Jasny\Auth\Session;
 
+use DateTimeImmutable;
 use Jasny\Auth\Session\Jwt\Cookie;
 use Jasny\Auth\Session\Jwt\CookieInterface;
 use Jasny\Immutable;
 use Lcobucci\JWT\Configuration;
+use Lcobucci\JWT\Token;
+use Lcobucci\JWT\UnencryptedToken;
 
 /**
  * Use JSON Web Token and JSON Web Signature (RFC 7519) to store auth session info.
@@ -55,14 +58,14 @@ class Jwt implements SessionInterface
     {
         $jwt = $this->cookie->get();
 
+        /** @var (Token&UnencryptedToken)|null $token */
         $token = $jwt !== null && $jwt !== ''
             ? $this->jwtConfig->parser()->parse($jwt)
             : null;
 
         $constraints = $this->jwtConfig->validationConstraints();
 
-        if (
-            $token === null ||
+        if ($token === null ||
             ($constraints !== [] && !$this->jwtConfig->validator()->validate($token, ...$constraints))
         ) {
             return ['user' => null, 'context' => null, 'checksum' => null, 'timestamp' => null];
@@ -91,6 +94,7 @@ class Jwt implements SessionInterface
         if ($timestamp instanceof \DateTime) {
             $timestamp = \DateTimeImmutable::createFromMutable($timestamp);
         }
+        /** @var DateTimeImmutable|null $timestamp */
         $time = $timestamp ?? new \DateTimeImmutable();
         $expire = $time->add(new \DateInterval("PT{$this->ttl}S"));
 
