@@ -21,10 +21,10 @@ use Jasny\Auth\Auth;
 use Jasny\Auth\Authz;
 
 $levels = new Authz\Levels([
-    1 => 'user',
-    10 => 'moderator',
-    20 => 'admin',
-    50 => 'superadmin'
+    'user' => 1,
+    'moderator' => 10,
+    'admin' => 20,
+    'root' => 100,
 ]);
 
 $auth = new Auth($levels, new AuthStorage());
