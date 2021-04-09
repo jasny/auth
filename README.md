@@ -83,9 +83,9 @@ Documentation
 * [MFA](https://www.jasny.net/auth/mfa) (Multi-factor authentication)
     * [TOTP](https://www.jasny.net/auth/mfa/totp) _(aka Google authenticator)_
 * [Confirmation](https://www.jasny.net/auth/confirmation)
-    * [Random token](https://www.jasny.net/auth/confirmation/random_token)
+    * [Random token](https://www.jasny.net/auth/confirmation/token)
     * [Hashids](https://www.jasny.net/auth/confirmation/hashids)
     * Examples
-      * [Signup](https://www.jasny.net/auth/confirmation/signup)
-      * [Forgot password](https://www.jasny.net/auth/confirmation/forgot_password)
+      * [Signup](https://www.jasny.net/auth/confirmation/examples/signup)
+      * [Forgot password](https://www.jasny.net/auth/confirmation/examples/forgot_password)
 * [Logging](https://www.jasny.net/auth/logging)
