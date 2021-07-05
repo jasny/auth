@@ -118,7 +118,7 @@ $authzArnold->is('admin');               // returns true
 $authz->is('admin');                     // returns false, as no user is set
 
 $jasny = fetchOrganizationByName("Jasny");
-$authzArnoldAtJasny->inContextOf($jasny);
+$authzArnoldAtJasny = $authzArnold->inContextOf($jasny);
 $authzArnoldAtJasny->is('owner');        // returns true;
 ```
 
