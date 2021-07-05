@@ -14,7 +14,7 @@ Authentication, authorization and access control for PHP.
 **Features**
 
 * Multiple [authorization strategies](https://www.jasny.net/auth/setup/roles), like groups (for acl) and levels.
-* Authorization [context](https://www.jasny.net/auth/setup/context) (eg. "is the user an _admin_ of this _team_").  
+* Authorization [context](https://www.jasny.net/auth/setup/context) (eg. "is the user an _admin_ of this _team_?").  
 * PSR-14 [events](https://www.jasny.net/auth/authentication#events) for login and logout.
 * PSR-15 [middleware](https://www.jasny.net/auth/middleware) for access control.
 * [Session invalidation](https://www.jasny.net/auth/authentication#session-invalidation), explicit or implicit (eg.
