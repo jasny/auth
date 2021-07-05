@@ -8,10 +8,10 @@ nav_order: 1
 TOTP MFA
 ===
 
-A good method is using time based one-time passwords according to [RFC 6238](http://tools.ietf.org/html/rfc6238) (TOTP),
+A good method for MFA is using time based one-time passwords according to [RFC 6238](http://tools.ietf.org/html/rfc6238) (TOTP),
 compatible with Google Authenticator.
 
-This example uses the [OTPHP](https://github.com/Spomky-Labs/otphp) and other supporting libraries.
+This example uses [OTPHP](https://github.com/Spomky-Labs/otphp) and other supporting libraries.
 
 ```
 composer require spomky-labs/otphp
