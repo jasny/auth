@@ -39,14 +39,14 @@ use Jasny\Auth\Auth;
 use Jasny\Auth\Authz;
 
 $groups = new Authz\Groups([
-    'users' => [],
-    'managers' => [],
-    'employees' => ['user'],
-    'developers' => ['employees'],
-    'paralegals' => ['employees'],
-    'lawyers' => ['paralegals'],
-    'lead-developers' => ['developers', 'managers'],
-    'firm-partners' => ['lawyers', 'managers']
+    'user' => [],
+    'manager' => [],
+    'employee' => ['user'],
+    'developer' => ['employee'],
+    'paralegal' => ['employee'],
+    'lawyer' => ['paralegal'],
+    'lead-developer' => ['developer', 'manager'],
+    'firm-partner' => ['lawyer', 'manager']
 ]);
 
 $auth = new Auth($groups, new AuthStorage());
