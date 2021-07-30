@@ -43,7 +43,8 @@ use Jasny\Auth\Auth;
 use Jasny\Auth\Authz\Levels;
 
 $levels = new Levels(['user' => 1, 'moderator' => 10, 'admin' => 100]);
-$auth = new Auth($levels, new AuthStorage()); // See `setup` docs for this class
+$storage = new AuthStorage(); // See `setup` docs for this class
+$auth = new Auth($levels, $storage);
 
 session_start();
 $auth->initialize();
