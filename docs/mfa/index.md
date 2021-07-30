@@ -60,7 +60,7 @@ MFA verification may also be done for a fully logged in user.
 
 ### Timeout
 
-The partial login state will not automatically time out and live as long as the session live time. It's recommended to
+The partial login state will not automatically time out and live as long as the session lifetime. It's recommended to
 check the authentication timestamp to limit the time between the first and second verification step.
 
 ```php
