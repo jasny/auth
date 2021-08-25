@@ -63,3 +63,17 @@ The `Auth` service isn't usable until it's initialized. This should be done afte
 session_start();
 $auth->initialize();
 ```
+
+### Context
+
+It’s possible authorize in [context](setup/context) of a **team** or **organization**. Rather than checking if a user is an manager in the application, you’d verify is the user is a manager of the team.
+
+```php
+$team = fetchTeam($teamId);
+
+if (!$auth->inContextOf($team)->is('manager')) {
+    http_response_code(403);
+    echo "Access denied";
+    exit();
+}
+```
