@@ -69,7 +69,7 @@ $auth->initialize();
 It’s possible authorize in [context](setup/context) of a **team** or **organization**. Rather than checking if a user is an manager in the application, you’d verify is the user is a manager of the team.
 
 ```php
-$team = fetchTeam($teamId);
+$team = $storage->fetchContext($teamId);
 
 if (!$auth->inContextOf($team)->is('manager')) {
     http_response_code(403);
