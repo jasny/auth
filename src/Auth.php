@@ -317,7 +317,10 @@ class Auth implements Authz
         $user = $this->storage->fetchUserByUsername($username);
 
         if ($user === null || !$user->verifyPassword($password)) {
-            $this->logger->debug("Login failed: invalid credentials", ['username' => $username]);
+            $this->logger->debug(
+                "Login failed: " . ($user === null ? "unknown username" : "incorrect password"),
+                ['username' => $username]
+            );
             throw new LoginException('Invalid credentials', LoginException::INVALID_CREDENTIALS);
         }
 
