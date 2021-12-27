@@ -684,7 +684,7 @@ class AuthTest extends TestCase
         $this->dispatcher->expects($this->never())->method('dispatch');
 
         $this->logger->expects($this->once())->method('debug')
-            ->with("Login failed: invalid credentials", ['username' => 'john']);
+            ->with("Login failed: unknown username", ['username' => 'john']);
 
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
         $this->authz->expects($this->never())->method('user');
@@ -719,7 +719,7 @@ class AuthTest extends TestCase
         $this->dispatcher->expects($this->never())->method('dispatch');
 
         $this->logger->expects($this->once())->method('debug')
-            ->with("Login failed: invalid credentials", ['username' => 'john']);
+            ->with("Login failed: incorrect password", ['username' => 'john']);
 
         $this->authz->expects($this->any())->method('isLoggedIn')->willReturn(false);
         $this->authz->expects($this->never())->method('user');
