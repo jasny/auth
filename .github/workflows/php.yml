@@ -17,9 +17,9 @@ jobs:
             composer: '--prefer-lowest'
             desc: "Lowest versions"
           - php: 7.4
+            coverage: '--coverage-clover /tmp/clover.xml'
           - php: 8.0
           - php: 8.1
-            coverage: '--coverage-clover /tmp/clover.xml'
     name: PHP ${{ matrix.php }} ${{ matrix.desc }}
 
     steps:
