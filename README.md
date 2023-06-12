@@ -9,7 +9,7 @@ Jasny Auth
 [![Packagist Stable Version](https://img.shields.io/packagist/v/jasny/auth.svg)](https://packagist.org/packages/jasny/auth)
 [![Packagist License](https://img.shields.io/packagist/l/jasny/auth.svg)](https://packagist.org/packages/jasny/auth)
 
-Authentication, authorization and access control for PHP.
+Authentication, authorization and access control for [Slim Framework](https://www.slimframework.com/) and other PHP micro-frameworks.
 
 **Features**
 

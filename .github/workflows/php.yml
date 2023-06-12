@@ -20,6 +20,7 @@ jobs:
             coverage: '--coverage-clover /tmp/clover.xml'
           - php: 8.0
           - php: 8.1
+          - php: 8.2
     name: PHP ${{ matrix.php }} ${{ matrix.desc }}
 
     steps:

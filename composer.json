@@ -1,8 +1,12 @@
 {
     "name": "jasny/auth",
-    "description": "Authentication and authorization",
+    "description": "Authentication, authorization and access control for Slim Framework and other PHP micro-frameworks",
     "keywords": [
-        "auth"
+        "auth",
+        "slim",
+        "jwt",
+        "psr-7",
+        "psr-15"
     ],
     "homepage": "https://www.jasny.net/auth",
     "license": "MIT",
